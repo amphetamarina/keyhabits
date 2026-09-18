@@ -3,6 +3,8 @@ vim9script
 # Pure statistics over lists of Events. Nothing here touches files, autocmds,
 # timers or options: events in, plain data out.
 
+import autoload 'keyhabits/domain/event.vim'
+
 const none_label: string = '[none]'
 
 def CountNames(names: list<string>): dict<number>
@@ -32,8 +34,27 @@ def IsCommandMode(mode: string): bool
   return mode == "\<C-V>" || (mode != '' && stridx('nvV', mode[0]) >= 0)
 enddef
 
+# A run of consecutive placeholders counts as one habit, so i<text><text><Esc>
+# and i<text><Esc> are the same command.
+def Collapse(names: list<string>): list<string>
+  var collapsed: list<string> = []
+  for name in names
+    if !IsRepeatedPlaceholder(name, collapsed)
+      add(collapsed, name)
+    endif
+  endfor
+  return collapsed
+enddef
+
+def IsRepeatedPlaceholder(name: string, collapsed: list<string>): bool
+  if name !=# event.PLACEHOLDER || len(collapsed) == 0
+    return false
+  endif
+  return collapsed[-1] ==# event.PLACEHOLDER
+enddef
+
 export def CountKeys(events: list<dict<any>>): dict<number>
-  return CountNames(NamesOf(events, 'key'))
+  return CountNames(NamesOf(events, 'typed'))
 enddef
 
 export def CountModes(events: list<dict<any>>): dict<number>
@@ -54,11 +75,11 @@ export def GroupCommands(events: list<dict<any>>): list<string>
     var first: dict<any> = events[index]
     var names: list<string> = []
     while index < len(events) && SameGroup(events[index], first)
-      add(names, events[index].key)
+      add(names, events[index].typed)
       index += 1
     endwhile
     if IsCommandMode(first.mode)
-      add(commands, join(names, ''))
+      add(commands, join(Collapse(names), ''))
     endif
   endwhile
   return commands
@@ -91,9 +112,13 @@ export def KeySequences(events: list<dict<any>>): list<list<string>>
       add(sequences, [])
       session = ev.sid
     endif
-    add(sequences[-1], ev.key)
+    add(sequences[-1], ev.typed)
   endfor
-  return sequences
+  var collapsed: list<list<string>> = []
+  for sequence in sequences
+    add(collapsed, Collapse(sequence))
+  endfor
+  return collapsed
 enddef
 
 export def Top(counts: dict<number>, limit: number): list<list<any>>

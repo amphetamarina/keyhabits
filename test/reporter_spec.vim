@@ -5,8 +5,10 @@ vim9script
 import './spec.vim' as spec
 import autoload 'keyhabits/app/reporter.vim'
 
+# typed defaults to the same key, so specs that do not care about the
+# difference stay short; pass typed explicitly to describe a mapping.
 def Ev(overrides: dict<any>): dict<any>
-  return extend({
+  var ev: dict<any> = extend({
     ts: 1700000000,
     sid: 's1',
     grp: 1,
@@ -15,6 +17,10 @@ def Ev(overrides: dict<any>): dict<any>
     typed: '',
     ft: 'vim',
   }, overrides)
+  if !has_key(overrides, 'typed')
+    ev.typed = ev.key
+  endif
+  return ev
 enddef
 
 def Options(overrides: dict<any>): dict<any>

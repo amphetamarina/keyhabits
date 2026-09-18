@@ -5,8 +5,10 @@ vim9script
 import './spec.vim' as spec
 import autoload 'keyhabits/domain/stats.vim'
 
+# typed defaults to the same key, so specs that do not care about the
+# difference stay short; pass typed explicitly to describe a mapping.
 def Ev(overrides: dict<any>): dict<any>
-  return extend({
+  var ev: dict<any> = extend({
     ts: 1700000000,
     sid: 's1',
     grp: 1,
@@ -15,6 +17,10 @@ def Ev(overrides: dict<any>): dict<any>
     typed: '',
     ft: 'vim',
   }, overrides)
+  if !has_key(overrides, 'typed')
+    ev.typed = ev.key
+  endif
+  return ev
 enddef
 
 spec.Describe('stats with no events', () => {
@@ -38,6 +44,15 @@ spec.Describe('stats.CountKeys', () => {
       Ev({key: '<Esc>'}),
     ]
     spec.Expect(stats.CountKeys(events)).ToEqual({j: 2, k: 1, '<Esc>': 1})
+  })
+
+  spec.It('counts the typed key, not what a mapping expanded to', () => {
+    var events: list<dict<any>> = [
+      Ev({key: 'd', typed: 'Q'}),
+      Ev({key: 'd', typed: 'Q'}),
+      Ev({key: 'j'}),
+    ]
+    spec.Expect(stats.CountKeys(events)).ToEqual({Q: 2, j: 1})
   })
 })
 
@@ -73,21 +88,23 @@ spec.Describe('stats.GroupCommands', () => {
     spec.Expect(stats.GroupCommands(events)).ToEqual(['ciw'])
   })
 
-  spec.It('joins repeated keys and typed text', () => {
+  spec.It('joins repeated normal-mode keys', () => {
     var events: list<dict<any>> = [
       Ev({key: '3'}),
       Ev({key: 'd'}),
       Ev({key: 'd'}),
     ]
     spec.Expect(stats.GroupCommands(events)).ToEqual(['3dd'])
+  })
 
-    var insert: list<dict<any>> = [
+  spec.It('collapses a run of typed text into one placeholder', () => {
+    var events: list<dict<any>> = [
       Ev({key: 'i'}),
       Ev({mode: 'i', key: '<text>'}),
       Ev({mode: 'i', key: '<text>'}),
       Ev({mode: 'i', key: '<Esc>'}),
     ]
-    spec.Expect(stats.GroupCommands(insert)).ToEqual(['i<text><text><Esc>'])
+    spec.Expect(stats.GroupCommands(events)).ToEqual(['i<text><Esc>'])
   })
 
   spec.It('drops a group that starts in insert mode', () => {
@@ -186,6 +203,25 @@ spec.Describe('stats.KeySequences', () => {
   spec.It('returns one list for a single session', () => {
     var events: list<dict<any>> = [Ev({key: 'a'}), Ev({key: 'b'})]
     spec.Expect(stats.KeySequences(events)).ToEqual([['a', 'b']])
+  })
+
+  spec.It('collapses typed text inside a session', () => {
+    var events: list<dict<any>> = [
+      Ev({key: 'i'}),
+      Ev({key: '<text>'}),
+      Ev({key: '<text>'}),
+      Ev({key: '<Esc>'}),
+    ]
+    spec.Expect(stats.KeySequences(events)).ToEqual([['i', '<text>', '<Esc>']])
+  })
+
+  spec.It('keeps placeholders that are not next to each other', () => {
+    var events: list<dict<any>> = [
+      Ev({key: '<text>'}),
+      Ev({key: 'j'}),
+      Ev({key: '<text>'}),
+    ]
+    spec.Expect(stats.KeySequences(events)).ToEqual([['<text>', 'j', '<text>']])
   })
 })
 

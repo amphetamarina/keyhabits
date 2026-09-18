@@ -7,7 +7,7 @@ vim9script
 # and Command-line modes is replaced by a placeholder, so that counts and
 # rhythm survive while content does not.
 
-const placeholder: string = '<text>'
+export const PLACEHOLDER = '<text>'
 
 const field_types: dict<string> = {
   ts: 'number',
@@ -35,7 +35,7 @@ def IsText(raw: string): bool
 enddef
 
 def Mask(raw: string, mode: string): string
-  return IsTextMode(mode) && IsText(raw) ? placeholder : raw
+  return IsTextMode(mode) && IsText(raw) ? PLACEHOLDER : raw
 enddef
 
 # The privacy rule at the raw level: key data in, key data out. It has to run
