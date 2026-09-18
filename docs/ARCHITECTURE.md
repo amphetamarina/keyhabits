@@ -5,7 +5,7 @@ persists the stream to disk, and generates a report of your most repeated
 keystrokes and commands. It is written entirely in Vim9script and has no
 external dependencies.
 
-Requirements: Vim 9.1.0034 or newer (needs `KeyInputPre`, `SafeState`, and
+Requirements: Vim 9.1.0564 or newer (needs `KeyInputPre`, `SafeState`, and
 Vim9 `class`/`interface`).
 
 ## Layers (Clean Architecture)
@@ -189,3 +189,4 @@ spec.Describe('stats.Top', () => {
 `make test` runs `vim -Nu NONE -es --not-a-term -S test/run.vim` and exits
 non-zero on any failure. Tests must not depend on the user's vimrc, plugins
 or the real log file; file-based specs use `tempname()`.
+

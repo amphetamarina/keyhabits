@@ -13,7 +13,7 @@ Status: in development.
 
 ## Requirements
 
-- Vim 9.1.0034 or newer (`KeyInputPre`, `SafeState`, Vim9
+- Vim 9.1.0564 or newer (`KeyInputPre`, `SafeState`, Vim9
   `class`/`interface`). Vim 9.2 is what the test suite runs against.
 
 ## Planned commands
@@ -27,3 +27,4 @@ Status: in development.
 Recording starts automatically on startup unless `g:keyhabits_auto_start` is
 set to `0`. See `docs/ARCHITECTURE.md` for the full design and
 `docs/BACKLOG.md` for the task list.
+
