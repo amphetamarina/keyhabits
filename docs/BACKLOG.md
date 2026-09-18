@@ -4,9 +4,9 @@ Each task is one reviewable unit and should land as one or a few atomic
 commits. Order matters: later tasks build on earlier ones. A task is done when
 its tests pass under `make test` and the lead has approved the diff.
 
-- [ ] T1  Scaffold: `AGENTS.md`, `README.md`, `.gitignore`, `.editorconfig`,
+- [x] T1  Scaffold: `AGENTS.md`, `README.md`, `.gitignore`, `.editorconfig`,
           commit `docs/ARCHITECTURE.md` and this backlog.
-- [ ] T2  Test harness: `test/spec.vim`, `test/run.vim`, `Makefile`, and a
+- [x] T2  Test harness: `test/spec.vim`, `test/run.vim`, `Makefile`, and a
           `spec_spec.vim` that proves passing and failing expectations are
           reported correctly.
 - [ ] T3  `domain/event.vim` + spec (New, Encode, Decode, privacy redaction).

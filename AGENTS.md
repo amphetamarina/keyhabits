@@ -47,10 +47,19 @@ which keeps domain code independent of infrastructure.
 
 ## Tests
 
-`make test` (added in T2 of the backlog) runs every `test/*_spec.vim` through
-`test/run.vim` under `vim -Nu NONE`, and exits non-zero on any failure. Specs
-must not depend on the user's vimrc, installed plugins or the real log file;
-file-based specs use `tempname()`.
+`make test` runs every `test/*_spec.vim` through `test/run.vim` and exits
+non-zero on any failure. Specs must not depend on the user's vimrc, installed
+plugins or the real log file; file-based specs use `tempname()`.
+
+Always run Vim headless in exactly this form:
+
+```
+timeout -s KILL 60 vim -Nu NONE -i NONE -es --not-a-term -S <file> </dev/null
+```
+
+Without `</dev/null` an erroring script drops Vim into Ex mode reading stdin
+and hangs. The spec DSL prints with `:verbose echo`, which writes to fd 1
+without reopening it, so it also works when stdout is a pipe or a socket.
 
 ## Vim9script style
 
