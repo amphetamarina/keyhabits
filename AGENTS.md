@@ -61,6 +61,10 @@ Without `</dev/null` an erroring script drops Vim into Ex mode reading stdin
 and hangs. The spec DSL prints with `:verbose echo`, which writes to fd 1
 without reopening it, so it also works when stdout is a pipe or a socket.
 
+Headless `-es` never leaves Ex mode: `mode(1)` is `ce`, `SafeState` never
+fires, and feeding `x` runs `:xit`. Specs that feed keys use `j` and call
+grouping hooks directly.
+
 ## Vim9script style
 
 - Every file starts with `vim9script`.
@@ -73,3 +77,4 @@ without reopening it, so it also works when stdout is a pipe or a socket.
 - One export per concept: a module exports one thing, not a grab bag.
 - Target Vim 9.2. Check `:help` in Vim itself when unsure about an API rather
   than guessing; grep the runtime docs for help text.
+
