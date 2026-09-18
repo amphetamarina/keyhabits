@@ -61,7 +61,7 @@ throwing, never by returning partial data.
 
 ### Privacy rule
 
-In Insert, Replace and Command-line modes the printable characters are the
+In Insert, Replace, Command-line and Terminal modes the printable characters
 user's actual text (and could include passwords). By default those are
 recorded as the placeholder key `<text>` so counts and rhythm survive but
 content does not. Special keys (`<Esc>`, `<C-w>`, `<CR>`, arrows) are always
