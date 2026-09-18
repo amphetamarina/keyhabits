@@ -13,3 +13,6 @@ events.jsonl
 
 # OS noise
 .DS_Store
+
+# Generated help tags
+doc/tags

@@ -1,0 +1,171 @@
+*keyhabits.txt*  Record and report your key habits            *keyhabits*
+
+keyhabits records every key you press, with the mode you pressed it in, and
+reports the keys and commands you repeat most. It is written in Vim9 script
+and keeps its events in a plain JSONL file.
+
+==============================================================================
+CONTENTS                                                *keyhabits-contents*
+
+    1. Introduction..............................|keyhabits-introduction|
+    2. Requirements..............................|keyhabits-requirements|
+    3. Commands..................................|keyhabits-commands|
+    4. Options...................................|keyhabits-options|
+    5. Privacy...................................|keyhabits-privacy|
+    6. Report....................................|keyhabits-report|
+    7. Log format................................|keyhabits-log-format|
+
+==============================================================================
+INTRODUCTION                                        *keyhabits-introduction*
+
+keyhabits watches every physical key press through the |KeyInputPre| event
+and stores it as one line of JSONL. Everything it reports is built from
+those events:
+
+- the key you physically typed, which is your habit, not what a mapping
+  expanded to,
+- the mode you typed it in,
+- the command you were composing, from Normal mode to the next return to
+  Normal,
+- the filetype of the buffer you were in.
+
+Start recording with |:KeyHabitsStart|, look at the result with
+|:KeyHabitsReport|, and see |keyhabits-log-format| for the file itself.
+
+==============================================================================
+REQUIREMENTS                                        *keyhabits-requirements*
+
+- Vim 9.1.0564 or newer. |KeyInputPre| was added in patch 9.1.0563 and
+  v:event.typedchar in 9.1.0564; without it keyhabits cannot tell the keys
+  you typed from the keys Vim generates itself. |SafeState|, |class| and
+  |interface| are used as well.
+
+Without a new enough Vim the plugin says so with one message and defines
+none of the commands.
+
+==============================================================================
+COMMANDS                                                *keyhabits-commands*
+
+:KeyHabitsStart                                             *:KeyHabitsStart*
+        Start recording. Recording also starts by itself on |VimEnter|
+        unless |g:keyhabits_auto_start| is 0. Starting while already
+        recording does nothing.
+
+:KeyHabitsStop                                               *:KeyHabitsStop*
+        Flush what is buffered, stop recording and remove the
+        autocommands. Stopping while not recording does nothing.
+
+:KeyHabitsReport [days]                                   *:KeyHabitsReport*
+        Open a report in a new scratch buffer with filetype
+        "keyhabits-report". The current session is flushed first, so the
+        report includes what you have just been doing. With [days], only
+        events from the last [days] days are reported; without it,
+        everything in the log is. See |keyhabits-report|.
+
+:KeyHabitsClear[!]                                         *:KeyHabitsClear*
+        Stop recording if it is running, then delete the log after asking
+        for confirmation. With [!] the question is skipped. See
+        |keyhabits-log-format| for where the log lives.
+
+==============================================================================
+OPTIONS                                                  *keyhabits-options*
+
+Each option can be set in your vimrc or at any time before recording
+starts.
+
+                                                     *g:keyhabits_log_file*
+g:keyhabits_log_file
+        string, default "$XDG_DATA_HOME/keyhabits/events.jsonl", or
+        "~/.local/share/keyhabits/events.jsonl" when $XDG_DATA_HOME is
+        unset or empty. The file events are appended to; a "~" in it is
+        expanded.
+
+                                                     *g:keyhabits_auto_start*
+g:keyhabits_auto_start
+        number, default 1. When not zero, recording starts on |VimEnter|.
+
+                                              *g:keyhabits_flush_threshold*
+g:keyhabits_flush_threshold
+        number, default 200. How many events are buffered before they are
+        written to the log. A smaller number writes more often.
+
+                                               *g:keyhabits_flush_interval*
+g:keyhabits_flush_interval
+        number, default 30000. Milliseconds between flushes of a partial
+        buffer, so a quiet session still reaches the log. 0 disables the
+        timer.
+
+                                                  *g:keyhabits_record_text*
+g:keyhabits_record_text
+        number, default 0. When not zero, text is stored exactly as typed
+        instead of being replaced by <text>. See |keyhabits-privacy|.
+
+                                                  *g:keyhabits_report_limit*
+g:keyhabits_report_limit
+        number, default 20. How many entries each ranked section of the
+        report shows.
+
+==============================================================================
+PRIVACY                                                  *keyhabits-privacy*
+
+In Insert, Replace, Command-line and Terminal modes the printable characters
+are the text you are entering, which can include passwords. By default each
+such character is stored as the placeholder <text>, so counts and rhythm
+survive while the content does not; the report collapses a run of them into
+one.
+
+Special keys such as <Esc>, <C-w>, <CR>, <Tab> and the arrow keys are always
+stored as they are, because they describe what you did rather than what you
+typed. Keys that Vim generates itself, such as the "d" and "l" that make up
+"x", are not stored at all.
+
+WARNING: set |g:keyhabits_record_text| to 1 and the log contains everything
+you type, including passwords, in clear text. Only do that where the log
+file is safe to read.
+
+==============================================================================
+REPORT                                                   *keyhabits-report*
+
+|:KeyHabitsReport| opens a scratch buffer with these sections:
+
+Top keys        The keys you physically typed, most frequent first. Text
+                typed in a text mode counts as <text>, one per character.
+Top commands    The commands you repeated, most frequent first. A command
+                starts in Normal mode and ends when you return to Normal, so
+                "ciw" with all of its typed text and the closing <Esc> is one
+                command, and that text counts as one <text>. Groups that do
+                not start in Normal or Visual mode are not commands and are
+                left out, which is why plain typing never shows up here.
+Top key pairs   Keys that follow each other, most frequent first. Pairs are
+                counted inside one session, so they never span two Vim runs.
+Modes           How often each mode was active when a key was pressed,
+                shown as Normal, Insert, Visual, Command-line, Replace or
+                Terminal. Modes that share a name, such as "n" and "no", are
+                added up.
+Filetypes       The |'filetype'| of the buffer each key was pressed in, most
+                frequent first. An empty filetype is shown as [none].
+
+A log with no events yet reports "no events recorded" instead.
+
+==============================================================================
+LOG FORMAT                                          *keyhabits-log-format*
+
+The log is one JSON object per line, appended as you type. Nothing is
+written until a buffer is flushed, so at most
+|g:keyhabits_flush_threshold| events can be lost by a crash. Each line has
+exactly these fields:
+
+        ts      number  localtime() when the key was seen
+        sid     string  session id, "<pid>-<start time>"
+        grp     number  command group; events sharing (sid, grp) were
+                        typed as one command
+        mode    string  mode(1) when the key was pressed
+        key     string  the key Vim processed, after mappings
+        typed   string  the key you physically typed
+        ft      string  filetype of the buffer
+
+The file is written to |g:keyhabits_log_file|. A line that cannot be read
+back is skipped while reading and counted, never fatal: the report then warns
+with "keyhabits: skipped N unreadable lines".
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
