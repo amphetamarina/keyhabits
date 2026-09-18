@@ -52,8 +52,15 @@ One key press. Represented as `dict<any>` so it can be serialized with
 |         |        | `(sid, grp)` were typed as one command, e.g. `c`,`i`,`w`   |
 | `mode`  | string | `mode(1)` at the time of the key                           |
 | `key`   | string | `v:char` after mappings; the key Vim actually processed    |
-| `typed` | string | `v:event.typedchar`; what the user physically typed        |
+| `typed` | string | `v:event.typedchar`; the key the user physically typed.    |
+|         |        | Statistics count `typed`, because it is the habit; `key`   |
+|         |        | only says what a mapping expanded to                       |
 | `ft`    | string | `&filetype` of the current buffer                          |
+
+Only key presses with a non-empty `typedchar` are recorded. Vim raises
+`KeyInputPre` again for keys it generates itself (`x` is executed as `dl`, a
+mapping replays its right-hand side) and those carry an empty `typedchar`;
+they are not habits and are dropped by capture.
 
 `event.vim` exports `New(...)`, `Encode(event): string` (JSON line) and
 `Decode(line: string): dict<any>`. `Decode` must reject malformed lines by
@@ -72,12 +79,14 @@ This redaction is a domain rule and lives in `event.vim`, not in capture.
 
 `stats.vim` is pure: it takes `list<dict<any>>` and returns plain data.
 
-- `CountKeys(events)` -> `dict<number>` keyed by `key`
+- `CountKeys(events)` -> `dict<number>` keyed by `typed`
 - `CountModes(events)` -> `dict<number>` keyed by `mode`
 - `CountFiletypes(events)`
-- `GroupCommands(events)` -> `list<string>`; joins `key`s of each
-  `(sid, grp)` in order into one string, e.g. `"ciw"`, `"3dd"`, `"<text>"`.
+- `GroupCommands(events)` -> `list<string>`; joins the `typed` keys of each
+  `(sid, grp)` in order into one string, e.g. `"ciw<text><Esc>"`, `"3dd"`.
   Only groups whose first key is in Normal or Visual mode count as commands.
+  A run of consecutive `<text>` placeholders collapses into one, so
+  `i<text><text><text><Esc>` and `i<text><Esc>` are the same habit.
 - `CountCommands(events)` -> `dict<number>` over `GroupCommands`
 - `Ngrams(keys: list<string>, n: number)` -> `dict<number>`; sliding window,
   never crossing a session boundary
@@ -138,7 +147,18 @@ Registers, in augroup `keyhabits`:
 - `KeyInputPre *` -> builds an Event via `event.New()` and calls
   `recorder.Record()`. Must be cheap: no file I/O, no string formatting beyond
   building the dict.
-- `SafeState *` -> increments the command group counter.
+- Command boundaries, each calling `NextGroup()`:
+  - `ModeChanged *:n*` when the new mode is Normal proper (`n`, not
+    `no` operator-pending): fires when an operator finishes (`no>n`), when
+    Insert or Replace ends (`i>n`), when a command line is done (`c>n`), and
+    when Visual ends (`v>n`). This makes `ciw<text><Esc>`, `3dd`, `x` and
+    `:<text><CR>` single commands.
+  - `SafeState *` only while `mode(1)` starts with `n`: separates plain
+    motions such as `j`, `w`, `p`, `u` and `.` that change no mode. It is
+    ignored in other modes, where it fires after every key and would fragment
+    a command. It also does not fire while typeahead is pending (a fast
+    `<Esc>` followed by a key), which is why `ModeChanged` is the primary
+    boundary.
 - `VimLeavePre *` -> `recorder.Flush()`.
 - A `timer_start` every `g:keyhabits_flush_interval` ms -> `recorder.Flush()`.
 
@@ -150,7 +170,9 @@ and stops the timer.
 Opens a new scratch buffer (`buftype=nofile bufhidden=wipe noswapfile`,
 filetype `keyhabits-report`) and writes the Report as aligned text sections.
 Pure rendering: a `Render(report): list<string>` function that is unit-tested,
-plus a thin `Open(lines)` that creates the buffer.
+plus a thin `Open(lines)` that creates the buffer. Mode rows are shown
+with readable labels (`n` and `no` are both Normal); rows that share a label
+are merged and re-sorted before rendering.
 
 ## Commands and configuration
 
