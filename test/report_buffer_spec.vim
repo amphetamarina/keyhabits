@@ -73,20 +73,28 @@ spec.Describe('report_buffer.Render', () => {
     spec.Expect(lines[title + 1]).ToEqual('  (none)')
   })
 
-  spec.It('labels the mode codes and keeps an unknown one as it is', () => {
+  spec.It('labels the modes and merges the ones that share a label', () => {
     var modes: list<list<any>> = [['n', 1], ['i', 1], ['v', 1], ['V', 1], ["\<C-V>", 1], ['c', 1], ['R', 1], ['t', 1], ['x', 1]]
     var lines: list<string> = report_buffer.Render(Report({modes: modes}))
     var title: number = index(lines, 'Modes')
-    spec.Expect(lines[title + 1 : title + 9]).ToEqual([
-      '     1  Normal',
-      '     1  Insert',
-      '     1  Visual',
-      '     1  Visual',
-      '     1  Visual',
+    spec.Expect(lines[title + 1 : title + 7]).ToEqual([
+      '     3  Visual',
       '     1  Command-line',
+      '     1  Insert',
+      '     1  Normal',
       '     1  Replace',
       '     1  Terminal',
       '     1  x',
+    ])
+  })
+
+  spec.It('adds up the rows of the modes that share a label', () => {
+    var modes: list<list<any>> = [['n', 5], ['no', 3], ['i', 4]]
+    var lines: list<string> = report_buffer.Render(Report({modes: modes}))
+    var title: number = index(lines, 'Modes')
+    spec.Expect(lines[title + 1 : title + 2]).ToEqual([
+      '     8  Normal',
+      '     4  Insert',
     ])
   })
 })

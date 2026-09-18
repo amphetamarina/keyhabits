@@ -2,6 +2,8 @@ vim9script
 
 # Renders a Report as text and shows it in a scratch buffer.
 
+import autoload 'keyhabits/domain/stats.vim'
+
 const buffer_name: string = 'keyhabits://report'
 
 export def Render(report: dict<any>): list<string>
@@ -56,11 +58,12 @@ def Section(lines: list<string>, title: string, rows: list<list<any>>)
 enddef
 
 def ModeRows(rows: list<list<any>>): list<list<any>>
-  var labelled: list<list<any>> = []
+  var counts: dict<number> = {}
   for [name, count] in rows
-    add(labelled, [ModeLabel(name), count])
+    var label: string = ModeLabel(name)
+    counts[label] = get(counts, label, 0) + count
   endfor
-  return labelled
+  return stats.Top(counts, 0)
 enddef
 
 # A readable label for the first character of mode(1); anything unknown keeps
