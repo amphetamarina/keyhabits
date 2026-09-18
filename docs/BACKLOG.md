@@ -13,8 +13,8 @@ its tests pass under `make test` and the lead has approved the diff.
 - [x] T4  `domain/stats.vim` + spec (all pure aggregation functions).
 - [x] T5  `app/store.vim` interface, `infra/memory_store.vim`,
           `infra/jsonl_store.vim` + specs (append, read, corrupt line, clear).
-- [ ] T6  `app/recorder.vim` + spec (threshold flush, manual flush, no-op flush).
-- [ ] T7  `config.vim` + spec (defaults, overrides, XDG path).
+- [x] T6  `app/recorder.vim` + spec (threshold flush, manual flush, no-op flush).
+- [x] T7  `config.vim` + spec (defaults, overrides, XDG path).
 - [ ] T8  `infra/capture.vim` + `plugin/keyhabits.vim` (Start/Stop/Clear
           commands, auto-start, timer). Integration spec using `feedkeys()`.
 - [ ] T9  `app/reporter.vim` + `infra/report_buffer.vim` + `:KeyHabitsReport`
