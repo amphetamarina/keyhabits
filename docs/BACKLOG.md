@@ -15,7 +15,7 @@ its tests pass under `make test` and the lead has approved the diff.
           `infra/jsonl_store.vim` + specs (append, read, corrupt line, clear).
 - [x] T6  `app/recorder.vim` + spec (threshold flush, manual flush, no-op flush).
 - [x] T7  `config.vim` + spec (defaults, overrides, XDG path).
-- [ ] T8  `infra/capture.vim` + `plugin/keyhabits.vim` (Start/Stop/Clear
+- [x] T8  `infra/capture.vim` + `plugin/keyhabits.vim` (Start/Stop/Clear
           commands, auto-start, timer). Integration spec using `feedkeys()`.
 - [ ] T9  `app/reporter.vim` + `infra/report_buffer.vim` + `:KeyHabitsReport`
           + specs (Build, Render).
