@@ -37,6 +37,21 @@ spec.Describe('spec', () => {
       spec.Expect(() => spec.Expect(false).ToBeTrue()).ToThrow('^Expect:')
       spec.Expect(() => spec.Expect(true).ToBeFalse()).ToThrow('^Expect:')
     })
+
+    spec.It('accepts the numbers 1 and 0 as truth values', () => {
+      spec.Expect(1).ToBeTrue()
+      spec.Expect(0).ToBeFalse()
+    })
+
+    spec.It('reports the opposite number as a failure', () => {
+      spec.Expect(() => spec.Expect(0).ToBeTrue()).ToThrow('^Expect:')
+      spec.Expect(() => spec.Expect(1).ToBeFalse()).ToThrow('^Expect:')
+    })
+
+    spec.It('fails for a value that is neither a bool nor a number', () => {
+      spec.Expect(() => spec.Expect('yes').ToBeTrue()).ToThrow('^Expect:')
+      spec.Expect(() => spec.Expect('').ToBeFalse()).ToThrow('^Expect:')
+    })
   })
 
   spec.Describe('ToContain', () => {

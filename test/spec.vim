@@ -68,14 +68,30 @@ export class Expectation
     endif
   enddef
 
+  # Vim builtins such as filereadable() return a Number, and Vim9 refuses to
+  # compare a Number with a Bool (E1138), so truth is derived from the type.
+  def _IsTrue(): bool
+    if type(this.actual) == v:t_bool
+      return this.actual
+    endif
+    return type(this.actual) == v:t_number && this.actual != 0
+  enddef
+
+  def _IsFalse(): bool
+    if type(this.actual) == v:t_bool
+      return !this.actual
+    endif
+    return type(this.actual) == v:t_number && this.actual == 0
+  enddef
+
   def ToBeTrue()
-    if this.actual != true
+    if !this._IsTrue()
       this._Fail($'expected true but got {string(this.actual)}')
     endif
   enddef
 
   def ToBeFalse()
-    if this.actual != false
+    if !this._IsFalse()
       this._Fail($'expected false but got {string(this.actual)}')
     endif
   enddef
