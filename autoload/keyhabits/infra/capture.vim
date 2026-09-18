@@ -7,6 +7,18 @@ vim9script
 import autoload 'keyhabits/app/recorder.vim' as rec
 import autoload 'keyhabits/domain/event.vim'
 
+# A command ends when Vim returns to Normal proper; 'no' (operator-pending) is
+# not the end of anything.
+export def IsCommandEnd(new_mode: string): bool
+  return new_mode == 'n'
+enddef
+
+# SafeState only separates plain Normal motions. In other modes it fires after
+# every key and would fragment a command.
+export def IsSafeBoundary(mode: string): bool
+  return mode != '' && mode[0] == 'n'
+enddef
+
 export class Capture
   var recorder: rec.Recorder
   var record_text: bool
@@ -30,6 +42,7 @@ export class Capture
     augroup keyhabits
       autocmd!
       autocmd KeyInputPre * OnKey()
+      autocmd ModeChanged *:n* OnModeChanged()
       autocmd SafeState * OnSafeState()
       autocmd VimLeavePre * OnLeave()
     augroup END
@@ -72,6 +85,12 @@ endclass
 var active: Capture = null_object
 
 def OnKey()
+  # Vim raises KeyInputPre again for keys it generates itself: 'x' runs as 'dl'
+  # and a mapping replays its right-hand side. Those carry no typed character
+  # and are not habits, so they are dropped here.
+  if v:event.typedchar == ''
+    return
+  endif
   var raw: dict<any> = {
     ts: localtime(),
     sid: active.session,
@@ -84,8 +103,16 @@ def OnKey()
   active.recorder.Record(event.New(raw, active.record_text))
 enddef
 
+def OnModeChanged()
+  if IsCommandEnd(v:event.new_mode)
+    active.NextGroup()
+  endif
+enddef
+
 def OnSafeState()
-  active.NextGroup()
+  if IsSafeBoundary(mode(1))
+    active.NextGroup()
+  endif
 enddef
 
 def OnLeave()
