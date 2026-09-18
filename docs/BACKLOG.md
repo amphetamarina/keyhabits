@@ -10,7 +10,7 @@ its tests pass under `make test` and the lead has approved the diff.
           `spec_spec.vim` that proves passing and failing expectations are
           reported correctly.
 - [x] T3  `domain/event.vim` + spec (New, Encode, Decode, privacy redaction).
-- [ ] T4  `domain/stats.vim` + spec (all pure aggregation functions).
+- [x] T4  `domain/stats.vim` + spec (all pure aggregation functions).
 - [ ] T5  `app/store.vim` interface, `infra/memory_store.vim`,
           `infra/jsonl_store.vim` + specs (append, read, corrupt line, clear).
 - [ ] T6  `app/recorder.vim` + spec (threshold flush, manual flush, no-op flush).
