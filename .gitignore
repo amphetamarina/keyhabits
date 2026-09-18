@@ -1,0 +1,15 @@
+# Vim swap and backup files
+*.swp
+*.swo
+*.swn
+*~
+
+# Local event log (the real log lives in $XDG_DATA_HOME)
+events.jsonl
+
+# Test artifacts
+/test/tmp/
+*.test.log
+
+# OS noise
+.DS_Store
