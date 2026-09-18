@@ -19,12 +19,12 @@ external dependencies.
 
 With Vim's native package support:
 
-    git clone <repository-url> ~/.vim/pack/plugins/start/keyhabits
+    git clone https://github.com/amphetamarina/keyhabits ~/.vim/pack/plugins/start/keyhabits
     :helptags ~/.vim/pack/plugins/start/keyhabits/doc
 
 With vim-plug:
 
-    Plug '<repository-url>'
+    Plug 'amphetamarina/keyhabits'
 
 ## Quick start
 
