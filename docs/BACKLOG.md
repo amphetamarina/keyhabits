@@ -17,6 +17,6 @@ its tests pass under `make test` and the lead has approved the diff.
 - [x] T7  `config.vim` + spec (defaults, overrides, XDG path).
 - [x] T8  `infra/capture.vim` + `plugin/keyhabits.vim` (Start/Stop/Clear
           commands, auto-start, timer). Integration spec using `feedkeys()`.
-- [ ] T9  `app/reporter.vim` + `infra/report_buffer.vim` + `:KeyHabitsReport`
+- [x] T9  `app/reporter.vim` + `infra/report_buffer.vim` + `:KeyHabitsReport`
           + specs (Build, Render).
 - [ ] T10 `doc/keyhabits.txt` help file and a complete README.

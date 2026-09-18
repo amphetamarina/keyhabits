@@ -77,4 +77,3 @@ grouping hooks directly.
 - One export per concept: a module exports one thing, not a grab bag.
 - Target Vim 9.2. Check `:help` in Vim itself when unsure about an API rather
   than guessing; grep the runtime docs for help text.
-

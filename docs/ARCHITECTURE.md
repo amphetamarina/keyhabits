@@ -189,4 +189,3 @@ spec.Describe('stats.Top', () => {
 `make test` runs `vim -Nu NONE -es --not-a-term -S test/run.vim` and exits
 non-zero on any failure. Tests must not depend on the user's vimrc, plugins
 or the real log file; file-based specs use `tempname()`.
-
