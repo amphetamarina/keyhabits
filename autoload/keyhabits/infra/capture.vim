@@ -61,6 +61,10 @@ export class Capture
   def NextGroup()
     this.group += 1
   enddef
+
+  def Flush()
+    this.recorder.Flush()
+  enddef
 endclass
 
 # The hooks reach the running instance through this variable, which has to be

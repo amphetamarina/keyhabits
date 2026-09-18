@@ -27,4 +27,3 @@ Status: in development.
 Recording starts automatically on startup unless `g:keyhabits_auto_start` is
 set to `0`. See `docs/ARCHITECTURE.md` for the full design and
 `docs/BACKLOG.md` for the task list.
-
