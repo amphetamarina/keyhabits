@@ -19,7 +19,7 @@ its tests pass under `make test` and the lead has approved the diff.
           commands, auto-start, timer). Integration spec using `feedkeys()`.
 - [x] T9  `app/reporter.vim` + `infra/report_buffer.vim` + `:KeyHabitsReport`
           + specs (Build, Render).
-- [ ] T10 `doc/keyhabits.txt` help file and a complete README.
+- [x] T10 `doc/keyhabits.txt` help file and a complete README.
 - [x] T11 Command boundaries and physical keys: `ModeChanged` plus a guarded
           `SafeState`, drop keys Vim generates itself, count `typed`, collapse
           insert text, merge mode rows.
