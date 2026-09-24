@@ -85,17 +85,31 @@ ranked by the keys it would have saved and names the `:help` topic it comes
 from. Tips are taken only from Vim's own documentation, and a spec fails if any
 cited help tag does not exist.
 
-The tips cover:
+The 111 tips cover:
 
-- repeated motions: counts (`5j`, `3w`), `CTRL-D`/`CTRL-U` for long runs of
-  `j`/`k`, `f{char}` for long runs of `l`/`h`, and `;` to repeat an `f` or `t`
-- repeated edits: counts for `x`, `X`, `dd`, `dw`, `J`, `p`, `u`, `~`, blank
-  lines and scrolling
+- repeated motions: counts for `j`, `k`, `w`, `b`, `e`, `W`, `B`, `E`, `ge`,
+  `}`, `)`, `+`, `-`, `gj`, `n`, `*`, `;`, `,`, `]]`, `]s`, `]c` and their
+  backward twins; `CTRL-D`/`CTRL-U` for long runs of `j`/`k`; `f{char}` for
+  long runs of `l`/`h`; `;` to repeat an `f` or `t`
+- jumps and views: counts for `CTRL-F`/`CTRL-B`, `CTRL-O`/`CTRL-I`, `g;`/`g,`,
+  `gT`, `zh`/`zl`, `CTRL-E`/`CTRL-Y` and window resizing with `CTRL-W +-<>`
+- repeated edits: counts for `x`, `X`, `dd`, `dw`, `dj`, `J`, `p`, `u`,
+  `CTRL-R`, `~`, `CTRL-A`/`CTRL-X`, `@a`, `@@` and blank lines; `dd..` →
+  `3dd`; `>>>>>>` → `V3>`
 - longer ways to say something short: `$a` → `A`, `^i` → `I`, `d$a` → `C`,
-  `diwi` → `ciw`, `ddO` → `cc`, `xi` → `s`, `dl` → `x`, `d$` → `D`
-- Visual detours: `viwd` → `diw`, `ved` → `de`, `Vjjd` → `3dd`
+  `diwi` → `ciw`, `dt)i` → `ct)`, `diwx` → `daw`, `ddO` → `cc`, `xi` → `s`,
+  `hx` → `X`, `ha` → `i`, `li` → `a`, `j^` → `+`, `A<CR>` → `o`,
+  `kA<CR>` → `O`, `dl` → `x`, `d$` → `D`
+- Visual detours: `viwd` → `diw`, `ved` → `de`, `vd` → `x`, `vr.` → `r.`,
+  `Vjjd` → `3dd`, `Vjj>` → `3>>`, `Vjj=` → `3==`, `VjjJ` → `3J`,
+  `VG=` → `=G`
 - Insert and command-line editing: `CTRL-W` instead of a run of `<BS>`,
   `<C-Left>`/`<C-Right>` instead of a run of arrows
+
+A tip is added only when the help backs it and the short form does the same
+thing: `>>` three times is not `3>>` (that shifts three lines once), `.` with
+a count is not the change repeated, and `gt` with a count goes to that tab
+number rather than moving that many tabs.
 
 Every tip carries an example that a spec runs through the matcher, so a tip
 that never fires, or that an earlier one hides, fails `make test`. Commands

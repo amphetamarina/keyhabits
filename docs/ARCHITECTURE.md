@@ -208,7 +208,9 @@ occurrences in the window and is outside its `cooldown`, calls
 one tip per command. The time arrives with each command,
 `Observe(command, now)`, and the `Notifier` interface (`app/notifier.vim`) is
 injected, so the coach is tested without clocks or popups. The window is
-also capped at 200 commands, because matching runs after every command.
+also capped at 50 commands, because matching runs after every command; with
+the catalogue remembering which rules can start at each distinct command
+(`advice.Match`), a command costs well under a millisecond.
 
 The composition root wires the coach to `Capture.OnCommand()` only when
 `g:keyhabits_nudge` is set, and skips commands while a macro is being
