@@ -25,11 +25,20 @@ end
 
 -- A mapping changes what a key does when it has a description, as mappings
 -- from plugins and LazyVim do, and does not simply run the key itself: s for
--- flash.nvim or H for the previous buffer do, j mapped to "v:count == 0 ?
--- 'gj' : 'j'" does not. Returns the description of such a mapping.
+-- flash.nvim or H for the previous buffer do. These keep the key's meaning:
+-- an expression mapping, which falls back to the key, like LazyVim's j
+-- ("v:count == 0 ? 'gj' : 'j'") or noice's CTRL-F, which scrolls a hover
+-- window and is CTRL-F everywhere else; and which-key's triggers, which show
+-- a popup and replay the key. Returns the description of a mapping that
+-- changes the key.
+local which_key_trigger = "which-key-trigger"
+
 function M.remapped(mode, key)
   local mapping = vim.fn.maparg(key, mode, false, true)
   if vim.tbl_isempty(mapping) or not mapping.desc or mapping.desc == "" then
+    return nil
+  end
+  if mapping.expr == 1 or mapping.desc == which_key_trigger then
     return nil
   end
   if mapping.callback or not (mapping.rhs or ""):find(key, 1, true) then

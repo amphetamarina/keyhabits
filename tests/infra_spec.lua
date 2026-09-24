@@ -146,12 +146,18 @@ describe("environment", function()
     vim.keymap.set("n", "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, desc = "Down" })
     vim.keymap.set("n", "s", function() end, { desc = "Flash" })
     vim.keymap.set("n", "f", function() end)
+    vim.keymap.set("n", "<C-F>", function()
+      return "<C-F>"
+    end, { expr = true, desc = "Scroll Forward" })
+    vim.keymap.set("n", "g", function() end, { desc = "which-key-trigger" })
+    expect(environment.remapped("n", "<C-F>")):to_be_nil()
+    expect(environment.remapped("n", "g")):to_be_nil()
     expect(environment.remapped("n", "H")):to_be("Prev Buffer")
     expect(environment.remapped("n", "s")):to_be("Flash")
     expect(environment.remapped("n", "j")):to_be_nil()
     expect(environment.remapped("n", "f")):to_be_nil()
     expect(environment.remapped("n", "X")):to_be_nil()
-    for _, key in ipairs({ "H", "j", "s", "f" }) do
+    for _, key in ipairs({ "H", "j", "s", "f", "<C-F>", "g" }) do
       vim.keymap.del("n", key)
     end
   end)

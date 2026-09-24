@@ -1150,7 +1150,7 @@ return {
     fix = 3,
     tip = "Apply the operator up to the first line directly: dgg, =gg",
     help = "gg",
-    suggests = { "g" },
+    suggests = { "d" },
     example = { "Vggd" },
   },
   {
