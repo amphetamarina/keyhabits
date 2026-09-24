@@ -102,7 +102,6 @@ needs, and each doing the same thing as the habit it replaces. They cover:
   `Alt-k`, `o<Esc>k` → `]<Space>`, eight or more `w` or `b` → flash's `s`
   jump, and repeated `n` → `CTRL-S` during a `/` search for flash's labels;
   each shows only when the mapping or plugin is there
-
 - going past a line and back (`jjjjk`): read the count off the relative
   numbers (`3j`); long runs of `j`/`k`: `CTRL-D`/`CTRL-U`, or flash's `s`
 - counts for repeated motions: `j`, `k`, `w`, `b`, `e`, `W`, `B`, `E`, `ge`,

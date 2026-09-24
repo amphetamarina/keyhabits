@@ -85,10 +85,10 @@ gathered even when two editors interleave in the log), `ngrams`,
 `tips.lua` is data: one table per tip. Its header documents every field:
 `sequence` (Vim regexes, one per command), `min`, `same`, `inside`, `repeats`,
 `fix`/`fix_each` or `saves`, `tip`, `help`, `suggests`, `requires`,
-`needs_mapping`, `source`, `variants` and `example`. Tips match runs of commands, because `SafeState` ends a command
-after every plain motion, so `jjjj` is four `j` commands. They are tried in
-order and the first match wins, so a longer habit comes before a shorter one
-that starts the same way.
+`needs_mapping`, `source`, `variants` and `example`. Tips match runs of
+commands, because `SafeState` ends a command after every plain motion, so
+`jjjj` is four `j` commands. They are tried in order and the first match wins,
+so a longer habit comes before a shorter one that starts the same way.
 
 `advice.lua` matches them: `match(commands, tips)` returns `{ id = { runs,
 saved } }`, consuming each run so it counts once; `uncovered(commands, tips)`
