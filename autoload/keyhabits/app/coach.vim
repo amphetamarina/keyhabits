@@ -9,7 +9,7 @@ import autoload 'keyhabits/domain/advice.vim'
 
 # Matching runs after every command, so the window is also capped in size to
 # keep that cheap during a burst of motions.
-const max_recent: number = 200
+const max_recent: number = 50
 
 export class Coach
   var notifier: port.Notifier
