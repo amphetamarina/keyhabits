@@ -16,3 +16,6 @@ events.jsonl
 
 # Generated help tags
 doc/tags
+
+# Local secrets
+.env
