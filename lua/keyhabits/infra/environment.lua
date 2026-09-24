@@ -47,6 +47,16 @@ function M.remapped(mode, key)
   return nil
 end
 
+-- The description of any mapping of the key, "" when it has none, or nil when
+-- the key is not mapped.
+function M.mapped(mode, key)
+  local mapping = vim.fn.maparg(key, mode, false, true)
+  if vim.tbl_isempty(mapping) then
+    return nil
+  end
+  return mapping.desc or ""
+end
+
 -- The environment the selection works with: this editor, and the tips the
 -- user switched off.
 function M.current(disable)
@@ -54,7 +64,7 @@ function M.current(disable)
   for _, id in ipairs(disable) do
     disabled[id] = true
   end
-  return { has = M.has, remapped = M.remapped, disabled = disabled }
+  return { has = M.has, mapped = M.mapped, remapped = M.remapped, disabled = disabled }
 end
 
 return M

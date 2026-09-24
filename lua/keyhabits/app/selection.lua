@@ -1,27 +1,38 @@
 -- Which tips apply in this editor. Pure: the environment comes in as an
--- object answering three questions, so the rules can be tested without
+-- object answering a few questions, so the rules can be tested without
 -- plugins or mappings.
 --
 -- env.has(plugin)          -> true when the plugin is installed
+-- env.mapped(mode, key)    -> the description of any mapping of the key
+--                             ("" without one), or nil when it is unmapped
 -- env.remapped(mode, key)  -> a description when the key is mapped to
 --                             something else in that mode, else nil
 -- env.disabled             -> set of tip ids the user switched off
 
 local M = {}
 
--- "i:<C-W>" is <C-W> in Insert mode, "x:>" is > in Visual mode, and a bare
--- key is a Normal mode key.
+-- "i:<C-W>" is <C-W> in Insert mode, "x:>" is > in Visual mode, "c:<C-S>" is
+-- <C-S> on the command line, and a bare key is a Normal mode key.
 local function split_key(suggestion)
-  local mode, key = suggestion:match("^([ix]):(.+)$")
+  local mode, key = suggestion:match("^([ixc]):(.+)$")
   if mode then
     return mode, key
   end
   return "n", suggestion
 end
 
+local function is_mapped(env, spec)
+  local mode, key = split_key(spec)
+  return env.mapped(mode, key) ~= nil
+end
+
+-- A variant applies when its plugin is installed and the mapping it relies
+-- on, if any, exists.
 local function first_variant(tip, env)
   for _, variant in ipairs(tip.variants or {}) do
-    if env.has(variant.requires) then
+    local plugin_there = not variant.requires or env.has(variant.requires)
+    local mapping_there = not variant.needs_mapping or is_mapped(env, variant.needs_mapping)
+    if plugin_there and mapping_there then
       return variant
     end
   end
@@ -35,6 +46,9 @@ function M.resolve(tip, env)
   if tip.requires and not env.has(tip.requires) then
     return nil, "needs " .. tip.requires
   end
+  if tip.needs_mapping and not is_mapped(env, tip.needs_mapping) then
+    return nil, ("needs %s mapped, as %s does"):format(tip.needs_mapping, tip.source or "a config")
+  end
   local shown = tip
   local variant = first_variant(tip, env)
   if variant then
@@ -42,7 +56,7 @@ function M.resolve(tip, env)
       tip = variant.tip,
       help = variant.help,
       suggests = variant.suggests,
-      source = variant.requires,
+      source = variant.source or variant.requires,
     })
   end
   for _, suggestion in ipairs(shown.suggests) do

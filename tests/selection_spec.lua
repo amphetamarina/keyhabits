@@ -14,6 +14,9 @@ local function env(options)
     remapped = function(mode, key)
       return mappings[mode .. ":" .. key]
     end,
+    mapped = function(mode, key)
+      return (options.present or {})[mode .. ":" .. key]
+    end,
     disabled = options.disabled or {},
   }
 end
@@ -70,6 +73,48 @@ describe("selection.resolve", function()
 
   it("keeps the plain tip when the variant's plugin is missing", function()
     expect(selection.resolve(with_variant, env()).tip):to_be("Use CTRL-D")
+  end)
+end)
+
+describe("selection.resolve with mappings", function()
+  local window = {
+    id = "window-move",
+    tip = "Use CTRL-J",
+    help = "CTRL-W_j",
+    suggests = {},
+    needs_mapping = "<C-J>",
+    source = "LazyVim",
+  }
+
+  it("shows a tip that relies on a mapping only when the mapping is there", function()
+    local shown = selection.resolve(window, env({ present = { ["n:<C-J>"] = "Go to Lower Window" } }))
+    expect({ shown.tip, shown.source }):to_equal({ "Use CTRL-J", "LazyVim" })
+    local missing, reason = selection.resolve(window, env())
+    expect(missing):to_be_nil()
+    expect(reason):to_be("needs <C-J> mapped, as LazyVim does")
+  end)
+
+  it("takes a variant only when its plugin and its mapping are both there", function()
+    local search = {
+      id = "repeated-next-match",
+      tip = "Use 3n",
+      help = "n",
+      suggests = {},
+      variants = {
+        {
+          requires = "flash.nvim",
+          needs_mapping = "c:<C-S>",
+          source = "flash",
+          tip = "CTRL-S",
+          help = "f",
+          suggests = {},
+        },
+      },
+    }
+    local both = env({ plugins = { ["flash.nvim"] = true }, present = { ["c:<C-S>"] = "Toggle Flash Search" } })
+    expect(selection.resolve(search, both).tip):to_be("CTRL-S")
+    expect(selection.resolve(search, env({ plugins = { ["flash.nvim"] = true } })).tip):to_be("Use 3n")
+    expect(selection.resolve(search, env({ present = { ["c:<C-S>"] = "x" } })).tip):to_be("Use 3n")
   end)
 end)
 

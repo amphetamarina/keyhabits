@@ -30,9 +30,15 @@
 --             Normal mode unless prefixed "i:" (Insert) or "x:" (Visual). A
 --             tip is not shown when one of them is mapped to something else
 --   requires  optional; a plugin the tip needs, such as "mini.ai"
---   variants  optional; better versions of the tip when a plugin is there,
---             each { requires, tip, help, suggests }; the first whose plugin
---             is available replaces tip, help and suggests
+--   needs_mapping  optional; a key the tip relies on being mapped, such as
+--             LazyVim's "<C-J>" for the window below, with the same mode
+--             prefixes as suggests
+--   source    optional; where the better way comes from, such as "LazyVim",
+--             shown with the tip
+--   variants  optional; better versions of the tip when a plugin or mapping
+--             is there, each { requires, needs_mapping, source, tip, help,
+--             suggests }; the first whose plugin and mapping are there
+--             replaces tip, help and suggests
 --   example   commands that show the habit; a spec checks that the tip
 --             matches them, that no earlier tip takes them, and that the
 --             better way saves keys
@@ -117,6 +123,62 @@ return {
     help = "'relativenumber'",
     suggests = { "k" },
     example = { "k", "k", "k", "j" },
+  },
+  {
+    id = "move-line-down",
+    sequence = { [=[^dd$]=], [=[^p$]=] },
+    min = 1,
+    saves = 2,
+    needs_mapping = "<A-j>",
+    source = "LazyVim",
+    tip = "Move the line down with Alt-j instead of ddp",
+    help = ":move",
+    suggests = {},
+    example = { "dd", "p" },
+  },
+  {
+    id = "move-line-up",
+    sequence = { [=[^dd$]=], [=[^k$]=], [=[^P$]=] },
+    min = 1,
+    saves = 3,
+    needs_mapping = "<A-k>",
+    source = "LazyVim",
+    tip = "Move the line up with Alt-k instead of ddkP",
+    help = ":move",
+    suggests = {},
+    example = { "dd", "k", "P" },
+  },
+  {
+    id = "window-move",
+    sequence = { [=[^<C-W>[hjkl]$]=] },
+    min = 1,
+    fix = 1,
+    needs_mapping = "<C-J>",
+    source = "LazyVim",
+    tip = "Go to the next window with CTRL-H, CTRL-J, CTRL-K or CTRL-L instead of CTRL-W h, j, k, l",
+    help = "CTRL-W_j",
+    suggests = {},
+    example = { "<C-W>j" },
+  },
+  {
+    id = "blank-line-below-in-place",
+    sequence = { [=[^o<Esc>$]=], [=[^k$]=] },
+    min = 1,
+    saves = 1,
+    tip = "Add an empty line below and stay on this one with ]<Space> instead of o<Esc>k",
+    help = "]<Space>",
+    suggests = { "]<Space>" },
+    example = { "o<Esc>", "k" },
+  },
+  {
+    id = "blank-line-above-in-place",
+    sequence = { [=[^O<Esc>$]=], [=[^j$]=] },
+    min = 1,
+    saves = 1,
+    tip = "Add an empty line above and stay on this one with [<Space> instead of O<Esc>j",
+    help = "[<Space>",
+    suggests = { "[<Space>" },
+    example = { "O<Esc>", "j" },
   },
   {
     id = "back-then-change-word",
@@ -430,6 +492,42 @@ return {
     example = rep("h", 4),
   },
   {
+    id = "far-w",
+    sequence = { [=[^w$]=] },
+    min = 8,
+    fix = 4,
+    tip = "Search for the word with /word instead of stepping with w",
+    help = "03.8",
+    suggests = { "/" },
+    variants = {
+      {
+        requires = "flash.nvim",
+        tip = "Jump to the word with s, its first letters and the label flash shows",
+        help = "flash.nvim-flash.nvim-usage",
+        suggests = {},
+      },
+    },
+    example = rep("w", 8),
+  },
+  {
+    id = "far-b",
+    sequence = { [=[^b$]=] },
+    min = 8,
+    fix = 4,
+    tip = "Search back for the word with ?word instead of stepping with b",
+    help = "?",
+    suggests = { "?" },
+    variants = {
+      {
+        requires = "flash.nvim",
+        tip = "Jump back to the word with s, its first letters and the label flash shows",
+        help = "flash.nvim-flash.nvim-usage",
+        suggests = {},
+      },
+    },
+    example = rep("b", 8),
+  },
+  {
     id = "repeated-w",
     sequence = { [=[^w$]=] },
     min = 4,
@@ -597,6 +695,16 @@ return {
     tip = "Skip ahead several matches at once with a count: 3n",
     help = "n",
     suggests = { "n" },
+    variants = {
+      {
+        requires = "flash.nvim",
+        needs_mapping = "c:<C-S>",
+        source = "flash.nvim in LazyVim",
+        tip = "While typing a / search, press CTRL-S: flash labels every match, so you jump straight to the one you want",
+        help = "flash.nvim-flash.nvim-usage",
+        suggests = {},
+      },
+    },
     example = rep("n", 4),
   },
   {

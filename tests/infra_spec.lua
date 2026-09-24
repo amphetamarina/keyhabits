@@ -162,15 +162,49 @@ describe("environment", function()
     end
   end)
 
+  it("tells a mapped key from an unmapped one", function()
+    vim.keymap.set("n", "<C-J>", "<C-w>j", { desc = "Go to Lower Window" })
+    vim.keymap.set("n", "<C-K>", "<C-w>k")
+    expect(environment.mapped("n", "<C-J>")):to_be("Go to Lower Window")
+    expect(environment.mapped("n", "<C-K>")):to_be("")
+    expect(environment.mapped("n", "<C-Y>")):to_be_nil()
+    vim.keymap.del("n", "<C-J>")
+    vim.keymap.del("n", "<C-K>")
+  end)
+
   it("builds the set of switched-off tips", function()
     expect(environment.current({ "a", "b" }).disabled):to_equal({ a = true, b = true })
   end)
 end)
 
 describe("Notifier", function()
-  it("names the source plugin and the help in the message", function()
-    expect(Notifier.message({ tip = "Use 5j", help = "count" })):to_be("Use 5j\n:help count")
-    expect(Notifier.message({ tip = "Use s", help = "x", source = "flash.nvim" })):to_be("Use s (flash.nvim)\n:help x")
+  it("puts the source and the help under the tip", function()
+    expect(Notifier.message({ tip = "Use 5j", help = "count" }, 40)):to_be("Use 5j\n:help count")
+    expect(Notifier.message({ tip = "Use s", help = "x", source = "flash.nvim" }, 40)):to_be(
+      "Use s\nflash.nvim · :help x"
+    )
+  end)
+
+  it("wraps a long tip at word boundaries so no line is cut", function()
+    local tip = { tip = "Jump straight to the line with s, a few letters and the label flash shows", help = "h" }
+    local lines = vim.split(Notifier.message(tip, 30), "\n")
+    expect(lines):to_equal({
+      "Jump straight to the line with",
+      "s, a few letters and the label",
+      "flash shows",
+      ":help h",
+    })
+  end)
+
+  it("fits 40% of the screen, between 30 and 60 columns", function()
+    local columns = vim.o.columns
+    vim.o.columns = 160
+    expect(Notifier.width()):to_be(60)
+    vim.o.columns = 100
+    expect(Notifier.width()):to_be(36)
+    vim.o.columns = 40
+    expect(Notifier.width()):to_be(30)
+    vim.o.columns = columns
   end)
 
   it("remembers the last tip and shows it with vim.notify", function()
@@ -186,7 +220,7 @@ describe("Notifier", function()
     end)
     vim.notify = original
     expect(notifier.last.help):to_be("count")
-    expect(seen):to_equal({ { "Use 5j\n:help count", "keyhabits" } })
+    expect(seen):to_equal({ { Notifier.message({ tip = "Use 5j", help = "count" }), "keyhabits" } })
   end)
 end)
 
