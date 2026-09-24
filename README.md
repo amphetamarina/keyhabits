@@ -85,8 +85,10 @@ ranked by the keys it would have saved and names the `:help` topic it comes
 from. Tips are taken only from Vim's own documentation, and a spec fails if any
 cited help tag does not exist.
 
-The 111 tips cover:
+The 115 tips cover:
 
+- going past a line and back (`jjjjk`): read the count off the relative line
+  numbers instead (`3j`)
 - repeated motions: counts for `j`, `k`, `w`, `b`, `e`, `W`, `B`, `E`, `ge`,
   `}`, `)`, `+`, `-`, `gj`, `n`, `*`, `;`, `,`, `]]`, `]s`, `]c` and their
   backward twins; `CTRL-D`/`CTRL-U` for long runs of `j`/`k`; `f{char}` for
@@ -97,7 +99,8 @@ The 111 tips cover:
   `CTRL-R`, `~`, `CTRL-A`/`CTRL-X`, `@a`, `@@` and blank lines; `dd..` →
   `3dd`; `>>>>>>` → `V3>`
 - longer ways to say something short: `$a` → `A`, `^i` → `I`, `d$a` → `C`,
-  `diwi` → `ciw`, `dt)i` → `ct)`, `diwx` → `daw`, `ddO` → `cc`, `xi` → `s`,
+  `diwi` → `ciw`, `b dw i` → `ciw`, `dw dw i` → `c2w`, `dt)i` → `ct)`,
+  `diwx` → `daw`, `ddO` → `cc`, `xi` → `s`,
   `hx` → `X`, `ha` → `i`, `li` → `a`, `j^` → `+`, `A<CR>` → `o`,
   `kA<CR>` → `O`, `dl` → `x`, `d$` → `D`
 - Visual detours: `viwd` → `diw`, `ved` → `de`, `vd` → `x`, `vr.` → `r.`,

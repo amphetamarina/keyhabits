@@ -121,6 +121,8 @@ This redaction is a domain rule and lives in `event.vim`, not in capture.
 | `fix`      | number       | keys the better way takes, typed text not counted |
 | `fix_each` | number       | optional; keys the better way adds per repeat     |
 |            |              | after the first, e.g. one `;` per repeated `fx`   |
+| `repeats`  | list<number> | optional; a minimum per regex, each matched as a  |
+|            |              | run, e.g. `[2, 1]`: two or more `j`, then a `k`   |
 | `saves`    | number       | instead of `fix`: keys saved per occurrence, for  |
 |            |              | rules whose commands carry an Insert of any length |
 | `tip`      | string       | the better way, one short line                    |
