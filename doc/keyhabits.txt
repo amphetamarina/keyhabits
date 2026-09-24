@@ -128,7 +128,12 @@ REPORT                                                   *keyhabits-report*
 
 |:KeyHabitsReport| opens a scratch buffer with these sections:
 
-Top keys        The keys you physically typed, most frequent first. Text
+Advice          Habits a better command would replace, ranked by the keys
+                it would have saved. Each tip names the help topic it comes
+                from, for example "(:help count)"; every tip is taken from
+                Vim's own documentation. A run of repeated motions such as
+                "jjjj" counts once, and runs never span two Vim sessions.
+Top keys       The keys you physically typed, most frequent first. Text
                 typed in a text mode counts as <text>, one per character.
 Top commands    The commands you repeated, most frequent first. A command
                 starts in Normal mode and ends when you return to Normal, so

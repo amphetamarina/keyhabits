@@ -23,7 +23,7 @@ its tests pass under `make test` and the lead has approved the diff.
 - [x] T11 Command boundaries and physical keys: `ModeChanged` plus a guarded
           `SafeState`, drop keys Vim generates itself, count `typed`, collapse
           insert text, merge mode rows.
-- [ ] T12 `domain/advice.vim` + spec: the rule catalogue and a pure matcher
+- [x] T12 `domain/advice.vim` + spec: the rule catalogue and a pure matcher
           over a list of commands. Every rule cites a `:help` tag, and a spec
           fails if `getcompletion(tag, 'help')` has no exact match. Add an
           "Advice" section to the report, ranked by occurrences times keys

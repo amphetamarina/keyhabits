@@ -21,6 +21,7 @@ autoload/keyhabits/
   domain/
     event.vim                         Event value object + (de)serialization
     stats.vim                         pure aggregation over lists of events
+    advice.vim                        tip catalogue + matcher over command runs
   app/
     store.vim                         `interface EventStore`
     recorder.vim                      use case: buffer events, flush to a store
@@ -97,14 +98,16 @@ This redaction is a domain rule and lives in `event.vim`, not in capture.
 
 `advice.vim` holds the rule catalogue and is pure. A rule is a plain dict:
 
-| field     | type   | meaning                                                  |
-|-----------|--------|----------------------------------------------------------|
-| `id`      | string | stable name, e.g. `repeated-j`                            |
-| `pattern` | string | Vim regex matched against a run of commands joined by    |
-|           |        | spaces, e.g. `\v^(j ){4,}` for four or more `j` motions   |
-| `tip`     | string | the better way, one short line                           |
-| `help`    | string | a `:help` tag that is the source of the tip              |
-| `saved`   | number | keys saved per occurrence, used for ranking              |
+| field      | type         | meaning                                           |
+|------------|--------------|---------------------------------------------------|
+| `id`       | string       | stable name, e.g. `repeated-j`                    |
+| `sequence` | list<string> | regexes, each matched against one whole command,  |
+|            |              | in order, e.g. `['^\$$', '^a\%(<text>\)\=<Esc>$']` |
+| `min`      | number       | times in a row the sequence must occur; a rule    |
+|            |              | with `min` 1 matches one occurrence at a time     |
+| `fix`      | number       | keys the better way takes, typed text not counted |
+| `tip`      | string       | the better way, one short line                    |
+| `help`     | string       | a `:help` tag that is the source of the tip       |
 
 Rules match runs of consecutive commands, not single command strings:
 `SafeState` ends a group after every plain motion, so `jjjj` is four `j`
@@ -113,8 +116,12 @@ and the reference manual); every `help` tag must resolve with
 `getcompletion(tag, 'help')`, and a spec enforces it.
 
 - `Rules()` -> `list<dict<any>>`
-- `Match(commands: list<string>, rules)` -> `list<dict<any>>` of
-  `{id, count}`; a run that matches is consumed so it is counted once
+- `KeyCount(command)` -> keys typed for a command; `<text>` counts as none,
+  a named key such as `<Esc>` as one
+- `Match(commands: list<string>, rules)` -> `dict<dict<number>>` of
+  `{id: {runs, saved}}`. At each position the first matching rule wins and
+  its run is consumed, so a run is counted once; `saved` adds up the keys of
+  each run minus `fix`
 
 ## Application
 
@@ -149,8 +156,12 @@ or files: it is fully testable with `MemoryStore`.
   top_bigrams:     [[keys, count], ...],
   modes:           [[mode, count], ...],
   filetypes:       [[ft, count], ...],
+  advice:          [{tip, help, runs, saved}, ...],
 }
 ```
+
+Advice is matched per session and ranked by `saved`; rows that save nothing
+are left out.
 
 `options`: `{limit: number, since: number}` where `since` is a `ts` lower
 bound (0 = everything).

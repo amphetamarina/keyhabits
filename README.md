@@ -73,6 +73,14 @@ collapsed to a single `<text>`. Plain Normal-mode motions are separated by
 `SafeState`, and key pairs are counted within one session, so no pair spans two
 Vim runs.
 
+## Advice
+
+The report opens with advice: habits that a better command would replace, such
+as repeating `j` where a count would do, or `$a` where `A` would. Each tip is
+ranked by the keys it would have saved and names the `:help` topic it comes
+from. Tips are taken only from Vim's own documentation, and a spec fails if any
+cited help tag does not exist.
+
 ## Development
 
 `make test` runs every spec through `test/run.vim` and exits non-zero on any
