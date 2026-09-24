@@ -38,6 +38,7 @@ spec.Describe('reporter.Build', () => {
     spec.Expect(report.top_bigrams).ToEqual([])
     spec.Expect(report.modes).ToEqual([])
     spec.Expect(report.filetypes).ToEqual([])
+    spec.Expect(report.advice).ToEqual([])
   })
 
   spec.It('counts totals, sessions, the time span and every section', () => {
@@ -104,5 +105,49 @@ spec.Describe('reporter.Build', () => {
     ]
     var report: dict<any> = reporter.Build(events, Options({}))
     spec.Expect(report.top_bigrams).ToEqual([['ab', 2]])
+  })
+
+  spec.It('turns a run of repeated motions into advice with its source', () => {
+    var events: list<dict<any>> = mapnew(range(1, 6), (_, grp: number): dict<any> => Ev({grp: grp, key: 'j'}))
+    var report: dict<any> = reporter.Build(events, Options({}))
+    var tip: string = 'Give the motion a count instead of repeating j: 5j'
+    spec.Expect(report.advice).ToEqual([{tip: tip, help: 'count', runs: 1, saved: 4}])
+  })
+
+  spec.It('does not match a run across sessions', () => {
+    var events: list<dict<any>> = [
+      Ev({sid: 's1', grp: 1, key: 'j'}),
+      Ev({sid: 's1', grp: 2, key: 'j'}),
+      Ev({sid: 's2', grp: 1, key: 'j'}),
+      Ev({sid: 's2', grp: 2, key: 'j'}),
+    ]
+    spec.Expect(reporter.Build(events, Options({})).advice).ToEqual([])
+  })
+
+  spec.It('gathers a session whose events are interleaved with another', () => {
+    var events: list<dict<any>> = [
+      Ev({sid: 's1', grp: 1, key: 'j'}),
+      Ev({sid: 's1', grp: 2, key: 'j'}),
+      Ev({sid: 's2', grp: 1, key: 'k'}),
+      Ev({sid: 's1', grp: 3, key: 'j'}),
+      Ev({sid: 's1', grp: 4, key: 'j'}),
+    ]
+    var rows: list<dict<any>> = reporter.Build(events, Options({})).advice
+    spec.Expect(mapnew(rows, (_, row: dict<any>): string => row.help)).ToEqual(['count'])
+  })
+
+  spec.It('ranks advice by keys saved and truncates it to the limit', () => {
+    var events: list<dict<any>> = [
+      Ev({grp: 1, key: 'd'}),
+      Ev({grp: 1, key: '$'}),
+      Ev({grp: 2, key: 'x'}),
+      Ev({grp: 3, key: 'x'}),
+      Ev({grp: 4, key: 'x'}),
+      Ev({grp: 5, key: 'x'}),
+      Ev({grp: 6, key: 'x'}),
+    ]
+    var rows: list<dict<any>> = reporter.Build(events, Options({limit: 1})).advice
+    spec.Expect(mapnew(rows, (_, row: dict<any>): list<number> => [row.runs, row.saved])).ToEqual([[1, 3]])
+    spec.Expect(rows[0].help).ToEqual('04.1')
   })
 })

@@ -14,6 +14,7 @@ export def Render(report: dict<any>): list<string>
   endif
   add(lines, TimeLine(report))
   add(lines, $'keys: {report.total_keys}  sessions: {report.sessions}')
+  AdviceSection(lines, report.advice)
   Section(lines, 'Top keys', report.top_keys)
   Section(lines, 'Top commands', report.top_commands)
   Section(lines, 'Top key pairs', report.top_bigrams)
@@ -85,4 +86,18 @@ def ModeLabel(mode: string): string
     t: 'Terminal',
   }
   return get(labels, mode[0], mode[0])
+enddef
+
+# Each tip carries the keys it would have saved and the :help command for the
+# documentation it comes from.
+def AdviceSection(lines: list<string>, rows: list<dict<any>>)
+  add(lines, '')
+  add(lines, 'Advice (keys a better command would have saved)')
+  if len(rows) == 0
+    add(lines, '  (none)')
+    return
+  endif
+  for row in rows
+    add(lines, printf('%6d  %s  (:help %s)', row.saved, row.tip, row.help))
+  endfor
 enddef

@@ -17,6 +17,7 @@ def Report(overrides: dict<any>): dict<any>
     top_bigrams: [['jj', 1]],
     modes: [['n', 2], ['ce', 1]],
     filetypes: [['vim', 3]],
+    advice: [{tip: 'Use 5j', help: 'count', runs: 2, saved: 6}],
   }, overrides)
 enddef
 
@@ -30,6 +31,7 @@ def EmptyReport(): dict<any>
     top_bigrams: [],
     modes: [],
     filetypes: [],
+    advice: [],
   }
 enddef
 
@@ -46,6 +48,9 @@ spec.Describe('report_buffer.Render', () => {
       'keyhabits report',
       $'from {from} to {to}',
       'keys: 3  sessions: 1',
+      '',
+      'Advice (keys a better command would have saved)',
+      '     6  Use 5j  (:help count)',
       '',
       'Top keys',
       '     2  j',
@@ -69,6 +74,13 @@ spec.Describe('report_buffer.Render', () => {
   spec.It('prints (none) for an empty section', () => {
     var lines: list<string> = report_buffer.Render(Report({top_keys: []}))
     var title: number = index(lines, 'Top keys')
+    spec.Expect(title >= 0).ToBeTrue()
+    spec.Expect(lines[title + 1]).ToEqual('  (none)')
+  })
+
+  spec.It('prints (none) when there is no advice', () => {
+    var lines: list<string> = report_buffer.Render(Report({advice: []}))
+    var title: number = index(lines, 'Advice (keys a better command would have saved)')
     spec.Expect(title >= 0).ToBeTrue()
     spec.Expect(lines[title + 1]).ToEqual('  (none)')
   })
