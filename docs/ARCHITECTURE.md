@@ -93,6 +93,29 @@ This redaction is a domain rule and lives in `event.vim`, not in capture.
 - `Top(counts: dict<number>, limit: number)` -> `list<list<any>>` of
   `[key, count]` sorted by count desc, then key asc for determinism
 
+### Advice
+
+`advice.vim` holds the rule catalogue and is pure. A rule is a plain dict:
+
+| field     | type   | meaning                                                  |
+|-----------|--------|----------------------------------------------------------|
+| `id`      | string | stable name, e.g. `repeated-j`                            |
+| `pattern` | string | Vim regex matched against a run of commands joined by    |
+|           |        | spaces, e.g. `\v^(j ){4,}` for four or more `j` motions   |
+| `tip`     | string | the better way, one short line                           |
+| `help`    | string | a `:help` tag that is the source of the tip              |
+| `saved`   | number | keys saved per occurrence, used for ranking              |
+
+Rules match runs of consecutive commands, not single command strings:
+`SafeState` ends a group after every plain motion, so `jjjj` is four `j`
+commands. Tips come only from Vim's own help (the user manual `usr_*.txt`
+and the reference manual); every `help` tag must resolve with
+`getcompletion(tag, 'help')`, and a spec enforces it.
+
+- `Rules()` -> `list<dict<any>>`
+- `Match(commands: list<string>, rules)` -> `list<dict<any>>` of
+  `{id, count}`; a run that matches is consumed so it is counted once
+
 ## Application
 
 ### EventStore (interface)
@@ -132,6 +155,15 @@ or files: it is fully testable with `MemoryStore`.
 `options`: `{limit: number, since: number}` where `since` is a `ts` lower
 bound (0 = everything).
 
+### Coach
+
+Live nudges. Keeps the finished commands of the last `window` seconds, runs
+`advice.Match` on each new one and, when a rule reaches `threshold`
+occurrences in the window and is outside its `cooldown`, calls
+`notifier.Notify(rule)` and restarts that rule's cooldown. The clock and the
+`Notifier` interface are injected, so the coach is tested without timers or
+popups. It stays silent while a macro is executing or being recorded.
+
 ## Infrastructure
 
 ### JsonlStore
@@ -165,6 +197,12 @@ Registers, in augroup `keyhabits`:
 `Start()` and `Stop()` are idempotent. `Stop()` flushes, deletes the augroup
 and stops the timer.
 
+### Popup notifier
+
+Implements `Notifier` with `popup_notification()`: a small popup in the top
+right that closes on its own after a few seconds and never takes focus or
+input. It shows the tip and its `:help` tag.
+
 ### Report buffer
 
 Opens a new scratch buffer (`buftype=nofile bufhidden=wipe noswapfile`,
@@ -191,6 +229,10 @@ are merged and re-sorted before rendering.
 | `g:keyhabits_flush_interval`    | `30000` ms                                   |
 | `g:keyhabits_record_text`       | `0`                                          |
 | `g:keyhabits_report_limit`      | `20`                                         |
+| `g:keyhabits_nudge`             | `0`; `1` shows live tips                     |
+| `g:keyhabits_nudge_threshold`   | `3` matches of one rule within the window    |
+| `g:keyhabits_nudge_window`      | `60` seconds                                 |
+| `g:keyhabits_nudge_cooldown`    | `600` seconds before the same tip again      |
 
 ## Testing
 

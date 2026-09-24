@@ -23,3 +23,14 @@ its tests pass under `make test` and the lead has approved the diff.
 - [x] T11 Command boundaries and physical keys: `ModeChanged` plus a guarded
           `SafeState`, drop keys Vim generates itself, count `typed`, collapse
           insert text, merge mode rows.
+- [ ] T12 `domain/advice.vim` + spec: the rule catalogue and a pure matcher
+          over a list of commands. Every rule cites a `:help` tag, and a spec
+          fails if `getcompletion(tag, 'help')` has no exact match. Add an
+          "Advice" section to the report, ranked by occurrences times keys
+          saved.
+- [ ] T13 Live nudges: capture hands each finished command to
+          `app/coach.vim`, which applies the threshold and cooldowns and calls
+          a `Notifier`; `infra/popup_notifier.vim` shows the tip with
+          `popup_notification()`. Options `g:keyhabits_nudge`,
+          `g:keyhabits_nudge_threshold`, `g:keyhabits_nudge_window`,
+          `g:keyhabits_nudge_cooldown`. Specs use a fake notifier and clock.
