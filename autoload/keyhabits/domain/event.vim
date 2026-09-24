@@ -59,7 +59,30 @@ def KeyName(raw: string, masked: string): string
   return raw == masked ? keytrans(raw) : masked
 enddef
 
-export def New(raw: dict<any>, record_text: bool = false): dict<any>
+const terminal_reply: string = "\<xOSC>"
+
+# The terminal's answer to a query, such as the background colour Vim asks
+# for at startup, arrives as <xOSC> glued to the next typed key. It is not a
+# key press. It is removed before Redact(), so that "<xOSC>a" typed in Insert
+# mode is still recognised as the single character "a".
+def WithoutReplies(raw: string): string
+  var cleaned: string = raw
+  var at: number = stridx(cleaned, terminal_reply)
+  while at >= 0
+    cleaned = strpart(cleaned, 0, at) .. strpart(cleaned, at + len(terminal_reply))
+    at = stridx(cleaned, terminal_reply)
+  endwhile
+  return cleaned
+enddef
+
+def WithoutRepliesIn(raw: dict<any>): dict<any>
+  return extend(copy(raw), {key: WithoutReplies(raw.key), typed: WithoutReplies(raw.typed)})
+enddef
+
+# A typed key that was nothing but terminal replies comes out with an empty
+# typed name, and capture drops it like any key the user did not type.
+export def New(given: dict<any>, record_text: bool = false): dict<any>
+  var raw: dict<any> = WithoutRepliesIn(given)
   var masked: dict<any> = record_text ? raw : Redact(raw)
   return {
     ts: raw.ts,

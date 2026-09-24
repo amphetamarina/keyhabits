@@ -97,6 +97,21 @@ spec.Describe('event.New', () => {
     spec.Expect(event.New(Raw({mode: 'i', typed: ''})).typed).ToEqual('')
   })
 
+  spec.It('drops terminal replies glued to a typed key', () => {
+    var built: dict<any> = event.New(Raw({key: 'j', typed: "\<xOSC>\<xOSC>j"}))
+    spec.Expect(built.key).ToEqual('j')
+    spec.Expect(built.typed).ToEqual('j')
+  })
+
+  spec.It('still redacts text that arrives with a terminal reply', () => {
+    var built: dict<any> = event.New(Raw({mode: 'i', key: 'a', typed: "\<xOSC>a"}))
+    spec.Expect(built.typed).ToEqual('<text>')
+  })
+
+  spec.It('leaves nothing typed when a key was only terminal replies', () => {
+    spec.Expect(event.New(Raw({typed: "\<xOSC>"})).typed).ToEqual('')
+  })
+
   spec.It('records text verbatim when record_text is true', () => {
     var built: dict<any> = event.New(Raw({mode: 'i', key: 'a', typed: 'a'}), true)
     spec.Expect(built.key).ToEqual('a')

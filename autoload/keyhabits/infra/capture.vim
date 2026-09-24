@@ -131,7 +131,12 @@ def OnKey()
     typed: v:event.typedchar,
     ft: &filetype,
   }
-  active.Take(event.New(raw, active.record_text))
+  var ev: dict<any> = event.New(raw, active.record_text)
+  # A key that was only a terminal reply has nothing typed left.
+  if ev.typed == ''
+    return
+  endif
+  active.Take(ev)
 enddef
 
 def OnModeChanged()

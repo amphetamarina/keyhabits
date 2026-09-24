@@ -66,6 +66,11 @@ Only key presses with a non-empty `typedchar` are recorded. Vim raises
 mapping replays its right-hand side) and those carry an empty `typedchar`;
 they are not habits and are dropped by capture.
 
+Replies from the terminal are not key presses either. The answer to Vim's
+background colour query (`t_RB`) arrives as `<xOSC>` glued to the next typed
+key, e.g. `<xOSC><xOSC>j`. `event.New` removes `<xOSC>` from the raw keys
+before redaction, and capture drops a key that had nothing else in it.
+
 `event.vim` exports `New(...)`, `Encode(event): string` (JSON line) and
 `Decode(line: string): dict<any>`. `Decode` must reject malformed lines by
 throwing, never by returning partial data.
