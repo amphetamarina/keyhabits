@@ -1,203 +1,192 @@
-*keyhabits.txt*  Record and report your key habits            *keyhabits*
+*keyhabits.txt*  Record your key habits and get tips for better commands
 
-keyhabits records every key you press, with the mode you pressed it in, and
-reports the keys and commands you repeat most. It is written in Vim9 script
-and keeps its events in a plain JSONL file.
+keyhabits records every key you press, with the mode you pressed it in,
+reports the keys and commands you repeat most, and tells you the moment a
+habit has a better command. It is written in Lua for Neovim and LazyVim.
 
 ==============================================================================
 CONTENTS                                                *keyhabits-contents*
 
     1. Introduction..............................|keyhabits-introduction|
-    2. Requirements..............................|keyhabits-requirements|
+    2. Setup.....................................|keyhabits-setup|
     3. Commands..................................|keyhabits-commands|
     4. Options...................................|keyhabits-options|
-    5. Privacy...................................|keyhabits-privacy|
+    5. Tips......................................|keyhabits-tips|
     6. Report....................................|keyhabits-report|
-    7. Log format................................|keyhabits-log-format|
+    7. Privacy...................................|keyhabits-privacy|
+    8. Log format................................|keyhabits-log-format|
 
 ==============================================================================
 INTRODUCTION                                        *keyhabits-introduction*
 
-keyhabits watches every physical key press through the |KeyInputPre| event
-and stores it as one line of JSONL. Everything it reports is built from
-those events:
+keyhabits watches every physical key press through |vim.on_key()| and groups
+the keys into commands: a command starts in Normal mode and ends when you
+return to Normal, so "ciw", the text you type and the closing <Esc> are one
+command, and plain motions such as "j" are one command each. From those it
+builds a report, and it matches them against a catalogue of tips while you
+work.
 
-- the key you physically typed, which is your habit, not what a mapping
-  expanded to,
-- the mode you typed it in,
-- the command you were composing, from Normal mode to the next return to
-  Normal,
-- the filetype of the buffer you were in.
-
-Start recording with |:KeyHabitsStart|, look at the result with
-|:KeyHabitsReport|, and see |keyhabits-log-format| for the file itself.
+Requires Neovim 0.11 or newer. The Vim 9 version is on the `legacy-vim9`
+branch of the repository.
 
 ==============================================================================
-REQUIREMENTS                                        *keyhabits-requirements*
+SETUP                                                      *keyhabits-setup*
 
-- Vim 9.1.0564 or newer. |KeyInputPre| was added in patch 9.1.0563 and
-  v:event.typedchar in 9.1.0564; without it keyhabits cannot tell the keys
-  you typed from the keys Vim generates itself. |SafeState|, |class| and
-  |interface| are used as well.
+With LazyVim, add a plugin spec: >lua
 
-Without a new enough Vim the plugin says so with one message and defines
-none of the commands.
+    return {
+      "amphetamarina/keyhabits",
+      event = "VeryLazy",
+      opts = {},
+    }
+<
+lazy.nvim calls `require("keyhabits").setup(opts)`, which starts recording.
+Without lazy.nvim, put the plugin on 'runtimepath' and call setup() yourself.
+
+The README shows how to add a Snacks toggle on <leader>uk and a
+report key.
 
 ==============================================================================
 COMMANDS                                                *keyhabits-commands*
 
-:KeyHabitsStart                                             *:KeyHabitsStart*
-        Start recording. Recording also starts by itself on |VimEnter|
-        unless |g:keyhabits_auto_start| is 0. Starting while already
-        recording does nothing.
+:KeyHabits [report] [{days}]                                    *:KeyHabits*
+        Open the report in a float. With {days}, only the last {days} days.
+        See |keyhabits-report|.
 
-:KeyHabitsStop                                               *:KeyHabitsStop*
-        Flush what is buffered, stop recording and remove the
-        autocommands. Stopping while not recording does nothing.
+:KeyHabits start                                        *:KeyHabits-start*
+:KeyHabits stop                                         *:KeyHabits-stop*
+        Start or stop recording. Stopping writes what is buffered.
 
-:KeyHabitsReport [days]                                   *:KeyHabitsReport*
-        Open a report in a new scratch buffer with filetype
-        "keyhabits-report". The current session is flushed first, so the
-        report includes what you have just been doing. With [days], only
-        events from the last [days] days are reported; without it,
-        everything in the log is. See |keyhabits-report|.
+:KeyHabits toggle                                      *:KeyHabits-toggle*
+        Turn live tips on or off. Recording goes on either way.
 
-:KeyHabitsClear[!]                                         *:KeyHabitsClear*
-        Stop recording if it is running, then delete the log after asking
-        for confirmation. With [!] the question is skipped. See
-        |keyhabits-log-format| for where the log lives.
+:KeyHabits why                                            *:KeyHabits-why*
+        Open the help for the last tip shown.
+
+:KeyHabits tips                                          *:KeyHabits-tips*
+        List the tips active in this editor, and the ones left out with the
+        reason: switched off in setup(), a plugin missing, or a key mapped
+        to something else.
+
+:KeyHabits[!] clear                                     *:KeyHabits-clear*
+        Stop recording and delete the log after a confirmation. With [!]
+        the question is skipped.
+
+`:checkhealth keyhabits` reports whether recording runs, where the log is
+and which tips are left out.
+
+The same are available from Lua: `require("keyhabits")` has setup(),
+start(), stop(), report(days), toggle_tips(), set_tips(on), tips_enabled(),
+why(), last_tip(), catalogue(), clear(force), is_recording() and log_file().
 
 ==============================================================================
 OPTIONS                                                  *keyhabits-options*
 
-Each option can be set in your vimrc or at any time before recording
-starts.
+Passed to setup(), shown here with their defaults: >lua
 
-                                                     *g:keyhabits_log_file*
-g:keyhabits_log_file
-        string, default "$XDG_DATA_HOME/keyhabits/events.jsonl", or
-        "~/.local/share/keyhabits/events.jsonl" when $XDG_DATA_HOME is
-        unset or empty. The file events are appended to; a "~" in it is
-        expanded.
+    {
+      log_file = "$XDG_DATA_HOME/keyhabits/events.jsonl",
+      auto_start = true,
+      flush_threshold = 200,
+      flush_interval = 30000,
+      record_text = false,
+      report = { limit = 20 },
+      tips = {
+        enabled = true,
+        threshold = 1,
+        window = 60,
+        cooldown = 600,
+        disable = {},
+      },
+    }
+<
+log_file          Where events are appended. Without $XDG_DATA_HOME,
+                  "~/.local/share/keyhabits/events.jsonl".
+auto_start        Start recording when setup() runs.
+flush_threshold   Events buffered before they are written.
+flush_interval    Milliseconds between writes of a partial buffer; 0 turns
+                  the timer off.
+record_text       Store typed text instead of <text>. See |keyhabits-privacy|.
+report.limit      Entries shown per ranked section of the report.
+tips.enabled      Show tips while you work.
+tips.threshold    How many times one habit must occur within the window
+                  before its tip shows. A run such as "jjjjjjjj" counts once.
+tips.window       Seconds of recent commands watched.
+tips.cooldown     Seconds before the same tip may show again.
+tips.disable      Tip ids never to show; `:KeyHabits tips` lists the ids.
 
-                                                     *g:keyhabits_auto_start*
-g:keyhabits_auto_start
-        number, default 1. When not zero, recording starts on |VimEnter|.
+==============================================================================
+TIPS                                                        *keyhabits-tips*
 
-                                              *g:keyhabits_flush_threshold*
-g:keyhabits_flush_threshold
-        number, default 200. How many events are buffered before they are
-        written to the log. A smaller number writes more often.
+A tip shows as a notification through |vim.notify()|, which LazyVim draws
+with noice or snacks. It names the better command and the help it comes from;
+`:KeyHabits why` opens that help. Every tip is backed by the help that ships
+with Neovim, or with the plugin it needs, and the better way does the same
+thing as the habit it replaces.
 
-                                               *g:keyhabits_flush_interval*
-g:keyhabits_flush_interval
-        number, default 30000. Milliseconds between flushes of a partial
-        buffer, so a quiet session still reaches the log. 0 disables the
-        timer.
+The tips know the editor they run in:
 
-                                                  *g:keyhabits_record_text*
-g:keyhabits_record_text
-        number, default 0. When not zero, text is stored exactly as typed
-        instead of being replaced by <text>. See |keyhabits-privacy|.
+- A tip whose suggested key your config maps to something else is not shown.
+  In LazyVim "s" is flash.nvim and "H" is the previous buffer, so tips that
+  suggest them stay quiet. A mapping counts as "something else" when it has
+  a description and does not simply run the key itself.
+- When flash.nvim is installed, tips for long runs of motions suggest its
+  jumps instead.
+- Tips that need a plugin, such as mini.ai's search for the next pair, show
+  only when it is installed.
 
-                                                  *g:keyhabits_report_limit*
-g:keyhabits_report_limit
-        number, default 20. How many entries each ranked section of the
-        report shows.
+A macro being recorded or replayed is never coached.
 
-                                                  *g:keyhabits_nudge*
-g:keyhabits_nudge
-        number, default 0. When not zero, a tip from the Advice section
-        (see |keyhabits-report|) pops up in the top right corner while you
-        work, when one habit keeps repeating. The popup closes by itself
-        after a few seconds and never takes focus or keys. Nothing is shown
-        while a macro is being recorded or replayed.
+==============================================================================
+REPORT                                                    *keyhabits-report*
 
-                                                  *g:keyhabits_nudge_threshold*
-g:keyhabits_nudge_threshold
-        number, default 1. How many times one habit must occur within
-        |g:keyhabits_nudge_window| before its tip is shown. A run of the
-        same motion, such as "jjjjjjjj", counts as one time.
+`:KeyHabits` opens a float with these sections. <CR> on a tip opens its
+help; q closes the float.
 
-                                                  *g:keyhabits_nudge_window*
-g:keyhabits_nudge_window
-        number, default 60. How many seconds of recent commands are watched.
-
-                                                  *g:keyhabits_nudge_cooldown*
-g:keyhabits_nudge_cooldown
-        number, default 600. Seconds before the same tip may be shown again.
+Advice          Habits a better command would replace, ranked by the keys
+                it would have saved, each with its help topic. Runs never
+                span two sessions.
+Repeated, no tip yet
+                Commands repeated three or more times in a row that no tip
+                covers. A command line run again (":<text><CR>") stays here:
+                its text is not recorded, so a repeat cannot be told apart
+                from a different command.
+Top keys        The keys you physically typed, most frequent first.
+Top commands    The commands you repeated, most frequent first.
+Top key pairs   Keys that follow each other, counted within a session.
+Modes           How often each mode was active, as Normal, Insert, Visual,
+                Command-line, Replace or Terminal.
+Filetypes       The 'filetype' of the buffer each key was pressed in.
 
 ==============================================================================
 PRIVACY                                                  *keyhabits-privacy*
 
 In Insert, Replace, Command-line and Terminal modes the printable characters
-are the text you are entering, which can include passwords. By default each
-such character is stored as the placeholder <text>, so counts and rhythm
-survive while the content does not; the report collapses a run of them into
-one.
+are the text you are entering, which can include passwords. By default each is
+stored as the placeholder <text>, so counts and rhythm survive while the
+content does not. Special keys such as <Esc>, <C-w>, <CR>, <Tab> and the arrow
+keys are stored as they are. Keys that mappings or Neovim generate are not
+stored.
 
-Special keys such as <Esc>, <C-w>, <CR>, <Tab> and the arrow keys are always
-stored as they are, because they describe what you did rather than what you
-typed. Keys that Vim generates itself, such as the "d" and "l" that make up
-"x", are not stored at all.
-
-WARNING: set |g:keyhabits_record_text| to 1 and the log contains everything
-you type, including passwords, in clear text. Only do that where the log
-file is safe to read.
+WARNING: with `record_text = true` the log contains everything you type,
+including passwords, in clear text.
 
 ==============================================================================
-REPORT                                                   *keyhabits-report*
+LOG FORMAT                                            *keyhabits-log-format*
 
-|:KeyHabitsReport| opens a scratch buffer with these sections:
+One JSON object per line, appended in batches, so at most `flush_threshold`
+events are lost by a crash. The format is shared with the Vim 9 version:
 
-Advice          Habits a better command would replace, ranked by the keys
-                it would have saved. Each tip names the help topic it comes
-                from, for example "(:help count)"; every tip is taken from
-                Vim's own documentation. A run of repeated motions such as
-                "jjjj" counts once, and runs never span two Vim sessions.
-Repeated, no tip yet
-                Commands you repeated three or more times in a row that no
-                tip covers yet, ranked by presses. A command line run again
-                (":<text><CR>") stays here: its text is not recorded, so
-                keyhabits cannot tell a repeat from a different command.
-Top keys        The keys you physically typed, most frequent first. Text
-                typed in a text mode counts as <text>, one per character.
-Top commands    The commands you repeated, most frequent first. A command
-                starts in Normal mode and ends when you return to Normal, so
-                "ciw" with all of its typed text and the closing <Esc> is one
-                command, and that text counts as one <text>. Groups that do
-                not start in Normal or Visual mode are not commands and are
-                left out, which is why plain typing never shows up here.
-Top key pairs   Keys that follow each other, most frequent first. Pairs are
-                counted inside one session, so they never span two Vim runs.
-Modes           How often each mode was active when a key was pressed,
-                shown as Normal, Insert, Visual, Command-line, Replace or
-                Terminal. Modes that share a name, such as "n" and "no", are
-                added up.
-Filetypes       The |'filetype'| of the buffer each key was pressed in, most
-                frequent first. An empty filetype is shown as [none].
-
-A log with no events yet reports "no events recorded" instead.
-
-==============================================================================
-LOG FORMAT                                          *keyhabits-log-format*
-
-The log is one JSON object per line, appended as you type. Nothing is
-written until a buffer is flushed, so at most
-|g:keyhabits_flush_threshold| events can be lost by a crash. Each line has
-exactly these fields:
-
-        ts      number  localtime() when the key was seen
+        ts      number  seconds since the epoch when the key was seen
         sid     string  session id, "<pid>-<start time>"
-        grp     number  command group; events sharing (sid, grp) were
-                        typed as one command
-        mode    string  mode(1) when the key was pressed
-        key     string  the key Vim processed, after mappings
+        grp     number  command group; events sharing (sid, grp) were typed
+                        as one command
+        mode    string  the mode when the key was pressed
+        key     string  the key after mappings
         typed   string  the key you physically typed
         ft      string  filetype of the buffer
 
-The file is written to |g:keyhabits_log_file|. A line that cannot be read
-back is skipped while reading and counted, never fatal: the report then warns
+A line that cannot be read back is skipped and counted; the report then warns
 with "keyhabits: skipped N unreadable lines".
 
  vim:tw=78:ts=8:noet:ft=help:norl:

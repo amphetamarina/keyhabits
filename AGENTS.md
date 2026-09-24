@@ -1,8 +1,11 @@
 # Working on keyhabits
 
-keyhabits is a Vim 9 plugin, written entirely in Vim9script, that records
-every key press together with its mode and reports the most repeated
-keystrokes and commands. It has no external dependencies.
+keyhabits is a Neovim plugin, written in Lua, that records every key press
+together with its mode, reports the most repeated keystrokes and commands, and
+shows a tip the moment a habit has a better command. It is built for LazyVim
+and works in any Neovim 0.11 or newer. It has no required dependencies.
+
+The Vim 9 version lives on the `legacy-vim9` branch and is not maintained.
 
 `docs/ARCHITECTURE.md` is the source of truth for design and layering;
 `docs/BACKLOG.md` is the source of truth for what to build next. Read both
@@ -14,7 +17,7 @@ maintainer instead of silently deviating.
 - Clean Code and Clean Architecture. Small functions, one responsibility,
   names that say what they do. No dead code, no commented-out code.
 - Everything testable has a BDD spec written with the in-repo DSL in
-  `test/spec.vim`. Run `make test` before reporting any task as done.
+  `tests/spec.lua`. Run `make test` before reporting any task as done.
 - Work is atomic and reviewed. One logical change per commit, and never commit
   without maintainer approval.
 - Stage files explicitly. Never `git add -A`.
@@ -23,13 +26,21 @@ maintainer instead of silently deviating.
 
 Dependencies point inward only:
 
-- `domain/` imports neither `app/` nor `infra/`.
-- `app/` imports no `infra/`.
-- `plugin/keyhabits.vim` is the composition root: the only place that wires
+- `lua/keyhabits/domain/` requires neither `app/` nor `infra/`.
+- `lua/keyhabits/app/` requires no `infra/`.
+- `lua/keyhabits/init.lua` is the composition root: the only place that wires
   concrete infrastructure (`infra/`) into use cases (`app/`).
 
-`autoload/keyhabits/domain/stats.vim` is pure: it takes lists and dicts and
-returns plain data, and it never touches files, autocmds or timers.
+Domain modules are pure: they take tables and return tables, and never touch
+buffers, windows, autocommands, timers, files or options.
+
+## Tips
+
+Every tip in `lua/keyhabits/domain/tips.lua` must be backed by the help that
+ships with Neovim, or with the plugin the tip needs, and the better way must do
+the same thing as the habit it replaces. Read the help text before adding a
+tip; do not add one from memory. The catalogue specs check each tip's example,
+its help tag and how it states the keys saved.
 
 ## Commit messages
 
@@ -37,43 +48,23 @@ An imperative subject under 72 characters with a type prefix (`feat`, `fix`,
 `test`, `docs`, `build`, `refactor`, `chore`), a blank line, then a body
 explaining what changed and why, wrapped at 72 characters.
 
-```
-feat: add Top to rank counts
-
-Top() sorts entries by count descending and breaks ties by key so that
-reports are stable across runs. It stays pure by taking a plain dict,
-which keeps domain code independent of infrastructure.
-```
-
 ## Tests
 
-`make test` runs every `test/*_spec.vim` through `test/run.vim` and exits
-non-zero on any failure. Specs must not depend on the user's vimrc, installed
-plugins or the real log file; file-based specs use `tempname()`.
+`make test` runs every `tests/*_spec.lua` in `nvim --headless --clean` and
+exits non-zero on any failure. Specs must not depend on the user's config,
+installed plugins or the real log file; file-based specs use `tempname()`.
 
-Always run Vim headless in exactly this form:
+Headless Neovim never fires `SafeState` and has no LazyVim mappings, so the
+live path (keys, command boundaries, which-key and flash behaviour, the
+notification) is checked by running the real config in a pseudo-terminal, with
+keys fed one at a time from a timer.
 
-```
-timeout -s KILL 60 vim -Nu NONE -i NONE -es --not-a-term -S <file> </dev/null
-```
+## Lua style
 
-Without `</dev/null` an erroring script drops Vim into Ex mode reading stdin
-and hangs. The spec DSL prints with `:verbose echo`, which writes to fd 1
-without reopening it, so it also works when stdout is a pipe or a socket.
-
-Headless `-es` never leaves Ex mode: `mode(1)` is `ce`, `SafeState` never
-fires, and feeding `x` runs `:xit`. Specs that feed keys use `j` and call
-grouping hooks directly.
-
-## Vim9script style
-
-- Every file starts with `vim9script`.
-- `def` for functions, never `function`. Type every parameter and return
-  value.
-- Share code with `export` and `import autoload`.
-- No legacy Vimscript.
-- Two-space indent, no tabs.
-- `snake_case` for variables, `PascalCase` for functions and classes.
-- One export per concept: a module exports one thing, not a grab bag.
-- Target Vim 9.2. Check `:help` in Vim itself when unsure about an API rather
-  than guessing; grep the runtime docs for help text.
+- `stylua` formats everything (`stylua.toml`: two spaces, 120 columns).
+- `lua-language-server --check lua` reports no warnings (`.luarc.json`).
+- A module returns one table. Classes are tables with `__index` and a `new`
+  constructor; methods use `:`.
+- `snake_case` for functions and variables, `PascalCase` for classes.
+- Target Neovim 0.11+. Check `:help` in Neovim itself when unsure about an API
+  rather than guessing.

@@ -34,3 +34,18 @@ its tests pass under `make test` and the lead has approved the diff.
           `popup_notification()`. Options `g:keyhabits_nudge`,
           `g:keyhabits_nudge_threshold`, `g:keyhabits_nudge_window`,
           `g:keyhabits_nudge_cooldown`. Specs use a fake notifier and clock.
+
+T1 to T13 built the Vim 9 version, kept on the `legacy-vim9` branch. From
+T14 on the plugin is Lua for Neovim and LazyVim.
+
+- [x] T14 Port to Lua: domain (event, stats, advice matcher, tip catalogue),
+          app (recorder, reporter, coach) and infra (capture with
+          `vim.on_key`, JSONL store, report float, `vim.notify` notifier),
+          `setup(opts)`, `:KeyHabits` and specs run in `nvim --headless`.
+          The log format and path stay the same, so history carries over.
+- [x] T15 Aware of the editor: `app/selection.lua` hides a tip whose key the
+          config maps to something else (LazyVim's `s`, `H`, `L`), swaps in a
+          plugin's better version (flash.nvim), and leaves out tips whose
+          plugin is missing (mini.ai). Capture ignores keys which-key and
+          mini.ai report twice. `:KeyHabits tips`, `:KeyHabits why`,
+          `:checkhealth keyhabits`, and a toggle for LazyVim's `<leader>u`.

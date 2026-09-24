@@ -1,137 +1,133 @@
 # keyhabits
 
-keyhabits is a Vim 9 plugin that watches every key you press, remembers the
+keyhabits is a Neovim plugin that watches every key you press, remembers the
 mode it was pressed in, and turns that stream into a report of your most
-repeated keystrokes and commands. Recording is cheap: keys are buffered in
-memory and flushed to disk in batches. The log is a plain append-only JSONL
-file, and printable text typed in Insert, Replace, Command-line and Terminal
-modes is redacted to `<text>` by default so that counts and rhythm survive
-while content does not. It is written entirely in Vim9script and has no
-external dependencies.
+repeated keystrokes and commands. When a habit has a better command, such as
+`jjjj` where `4j` would do, it tells you right away, and the tip names the
+`:help` topic it comes from.
+
+It is built for LazyVim and knows its setup: a tip whose key your config maps
+to something else is not shown, and when flash.nvim or mini.ai offer a better
+way, the tip says so. Printable text typed in Insert, Replace, Command-line and
+Terminal modes is recorded as `<text>`, so counts and rhythm survive while
+content does not. Written in Lua, no required dependencies.
+
+The Vim 9 version is kept on the `legacy-vim9` branch.
 
 ## Requirements
 
-- Vim 9.1.0564 or newer. `KeyInputPre` arrived in patch 9.1.0563 and
-  `v:event.typedchar` in 9.1.0564, which is what lets keyhabits tell the keys
-  you typed from the keys Vim generates itself.
+- Neovim 0.11 or newer.
 
 ## Installation
 
-With Vim's native package support:
+With LazyVim, add `~/.config/nvim/lua/plugins/keyhabits.lua`:
 
-    git clone https://github.com/amphetamarina/keyhabits ~/.vim/pack/plugins/start/keyhabits
-    :helptags ~/.vim/pack/plugins/start/keyhabits/doc
+```lua
+return {
+  "amphetamarina/keyhabits",
+  event = "VeryLazy",
+  opts = {},
+  config = function(_, opts)
+    require("keyhabits").setup(opts)
+    Snacks.toggle({
+      name = "Key Habit Tips",
+      get = function()
+        return require("keyhabits").tips_enabled()
+      end,
+      set = function(on)
+        require("keyhabits").set_tips(on)
+      end,
+    }):map("<leader>uk")
+  end,
+  keys = {
+    { "<leader>uK", "<cmd>KeyHabits report<cr>", desc = "Key Habits Report" },
+  },
+}
+```
 
-With vim-plug:
+With plain lazy.nvim, drop the `Snacks.toggle` part. Anywhere else, put the
+plugin on the runtime path and call `require("keyhabits").setup()`.
 
-    Plug 'amphetamarina/keyhabits'
+## Usage
 
-## Quick start
+Recording starts when `setup()` runs. Tips appear as notifications while you
+work; after using Neovim for a while:
 
-Recording starts automatically when Vim starts. After using Vim for a while:
+    :KeyHabits            " the report
+    :KeyHabits report 7   " the last seven days
 
-    :KeyHabitsReport      " report on everything in the log
-    :KeyHabitsReport 7    " report on the last seven days
-
-## Commands
+In the report, `<CR>` on a tip opens the help it comes from, and `q` closes it.
 
 | command | effect |
 |---------|--------|
-| `:KeyHabitsStart` | start recording; does nothing if already recording |
-| `:KeyHabitsStop` | flush what is buffered and stop recording |
-| `:KeyHabitsReport [days]` | open a report, optionally limited to the last `<days>` days |
-| `:KeyHabitsClear[!]` | delete the log after a confirmation prompt; `[!]` skips the question |
+| `:KeyHabits [report [days]]` | open the report, optionally for the last `days` days |
+| `:KeyHabits start` / `stop` | start or stop recording |
+| `:KeyHabits toggle` | turn live tips on or off |
+| `:KeyHabits why` | open the help for the last tip shown |
+| `:KeyHabits tips` | list the tips active here, and the ones left out with the reason |
+| `:KeyHabits[!] clear` | delete the log after a confirmation; `!` skips it |
+
+`:checkhealth keyhabits` shows whether recording runs, where the log is, and
+which tips are left out and why.
 
 ## Options
 
-| variable | default | meaning |
-|----------|---------|---------|
-| `g:keyhabits_log_file` | `$XDG_DATA_HOME/keyhabits/events.jsonl`, else `~/.local/share/keyhabits/events.jsonl` | where events are appended |
-| `g:keyhabits_auto_start` | `1` | start recording on `VimEnter` |
-| `g:keyhabits_flush_threshold` | `200` | events buffered before they are written |
-| `g:keyhabits_flush_interval` | `30000` | milliseconds between flushes of a partial buffer; `0` disables the timer |
-| `g:keyhabits_record_text` | `0` | record typed text instead of `<text>` |
-| `g:keyhabits_report_limit` | `20` | entries shown per ranked report section |
-| `g:keyhabits_nudge` | `0` | `1` shows a tip in a popup while you work |
-| `g:keyhabits_nudge_threshold` | `1` | times a habit must occur within the window before its tip shows; a run such as `jjjj` counts once |
-| `g:keyhabits_nudge_window` | `60` | seconds of recent commands watched |
-| `g:keyhabits_nudge_cooldown` | `600` | seconds before the same tip may show again |
+The defaults:
+
+```lua
+opts = {
+  log_file = "$XDG_DATA_HOME/keyhabits/events.jsonl", -- else ~/.local/share/...
+  auto_start = true, -- record from setup()
+  flush_threshold = 200, -- events buffered before they are written
+  flush_interval = 30000, -- ms between writes of a partial buffer; 0 disables
+  record_text = false, -- record typed text; the log then holds passwords too
+  report = { limit = 20 }, -- entries per ranked section
+  tips = {
+    enabled = true, -- show tips while you work
+    threshold = 1, -- times a habit must occur within the window
+    window = 60, -- seconds of recent commands watched
+    cooldown = 600, -- seconds before the same tip may show again
+    disable = {}, -- tip ids never to show, see :KeyHabits tips
+  },
+}
+```
+
+## The tips
+
+116 tips, each backed by the help that ships with Neovim or with the plugin it
+needs, and each doing the same thing as the habit it replaces. They cover:
+
+- going past a line and back (`jjjjk`): read the count off the relative
+  numbers (`3j`); long runs of `j`/`k`: `CTRL-D`/`CTRL-U`, or flash's `s`
+- counts for repeated motions: `j`, `k`, `w`, `b`, `e`, `W`, `B`, `E`, `ge`,
+  `}`, `)`, `+`, `-`, `gj`, `n`, `*`, `;`, `,`, `]]`, `]s`, `]c` and their
+  twins; `f{char}` for long runs of `l`/`h`; `;` (or flash's `f`) to repeat
+  an `f` or `t`
+- counts for jumps, views and edits: `CTRL-F`, `CTRL-O`, `g;`, `gT`, `zh`,
+  `CTRL-E`, window sizes, `x`, `X`, `dd`, `dw`, `J`, `p`, `u`, `CTRL-R`, `~`,
+  `CTRL-A`, `@a`, `@@`; `dd..` → `3dd`; `>>>>>>` → `V3>`
+- shorter spellings: `$a` → `A`, `^i` → `I`, `d$a` → `C`, `diwi` → `ciw`,
+  `dw dw i` → `c2w`, `dt)i` → `ct)`, `diwx` → `daw`, `ddO` → `cc`,
+  `hx` → `X`, `ha` → `i`, `j^` → `+`, `A<CR>` → `o`, `d$` → `D`
+- Visual detours: `viwd` → `diw`, `ved` → `de`, `Vjjd` → `3dd`,
+  `Vjj>` → `3>>`, `VG=` → `=G`
+- Insert editing: `CTRL-W` instead of a run of `<BS>`, `<C-Left>` instead of
+  a run of arrows
+- with mini.ai: `f(ci(` → `ci(`, since mini.ai finds the next pair itself
+
+Commands you repeat three or more times that no tip covers are listed in the
+report under "Repeated, no tip yet", so a missing tip is visible.
 
 ## Privacy
 
 In Insert, Replace, Command-line and Terminal modes the printable characters
-are the text you are entering, which can include passwords. By default each
-such character is stored as the placeholder `<text>`, so counts and rhythm
-survive while the content does not; the report collapses a run of them into
-one. Special keys such as `<Esc>`, `<C-w>` and `<CR>` are always stored as they
-are.
-
-**Warning:** with `g:keyhabits_record_text` set to `1`, the log contains
-everything you type, including passwords, in clear text.
-
-## How commands are grouped
-
-A command starts in Normal mode and ends when you return to Normal: `ciw`, the
-text you type and the closing `<Esc>` are one command, with the typed text
-collapsed to a single `<text>`. Plain Normal-mode motions are separated by
-`SafeState`, and key pairs are counted within one session, so no pair spans two
-Vim runs.
-
-## Advice
-
-The report opens with advice: habits that a better command would replace, such
-as repeating `j` where a count would do, or `$a` where `A` would. Each tip is
-ranked by the keys it would have saved and names the `:help` topic it comes
-from. Tips are taken only from Vim's own documentation, and a spec fails if any
-cited help tag does not exist.
-
-The 115 tips cover:
-
-- going past a line and back (`jjjjk`): read the count off the relative line
-  numbers instead (`3j`)
-- repeated motions: counts for `j`, `k`, `w`, `b`, `e`, `W`, `B`, `E`, `ge`,
-  `}`, `)`, `+`, `-`, `gj`, `n`, `*`, `;`, `,`, `]]`, `]s`, `]c` and their
-  backward twins; `CTRL-D`/`CTRL-U` for long runs of `j`/`k`; `f{char}` for
-  long runs of `l`/`h`; `;` to repeat an `f` or `t`
-- jumps and views: counts for `CTRL-F`/`CTRL-B`, `CTRL-O`/`CTRL-I`, `g;`/`g,`,
-  `gT`, `zh`/`zl`, `CTRL-E`/`CTRL-Y` and window resizing with `CTRL-W +-<>`
-- repeated edits: counts for `x`, `X`, `dd`, `dw`, `dj`, `J`, `p`, `u`,
-  `CTRL-R`, `~`, `CTRL-A`/`CTRL-X`, `@a`, `@@` and blank lines; `dd..` →
-  `3dd`; `>>>>>>` → `V3>`
-- longer ways to say something short: `$a` → `A`, `^i` → `I`, `d$a` → `C`,
-  `diwi` → `ciw`, `b dw i` → `ciw`, `dw dw i` → `c2w`, `dt)i` → `ct)`,
-  `diwx` → `daw`, `ddO` → `cc`, `xi` → `s`,
-  `hx` → `X`, `ha` → `i`, `li` → `a`, `j^` → `+`, `A<CR>` → `o`,
-  `kA<CR>` → `O`, `dl` → `x`, `d$` → `D`
-- Visual detours: `viwd` → `diw`, `ved` → `de`, `vd` → `x`, `vr.` → `r.`,
-  `Vjjd` → `3dd`, `Vjj>` → `3>>`, `Vjj=` → `3==`, `VjjJ` → `3J`,
-  `VG=` → `=G`
-- Insert and command-line editing: `CTRL-W` instead of a run of `<BS>`,
-  `<C-Left>`/`<C-Right>` instead of a run of arrows
-
-A tip is added only when the help backs it and the short form does the same
-thing: `>>` three times is not `3>>` (that shifts three lines once), `.` with
-a count is not the change repeated, and `gt` with a count goes to that tab
-number rather than moving that many tabs.
-
-Every tip carries an example that a spec runs through the matcher, so a tip
-that never fires, or that an earlier one hides, fails `make test`. Commands
-you repeat three or more times in a row that no tip covers are listed in the
-report under "Repeated, no tip yet", so a missing tip is visible rather than
-silent.
-
-With `let g:keyhabits_nudge = 1` the same tips also appear live, in a small
-popup in the top right corner, the moment a habit happens, for example on the
-fourth `j` in a row. The popup closes by itself and never takes focus; each
-tip waits ten minutes before it can show again, and macros are never coached.
+are the text you are entering, which can include passwords. They are stored as
+`<text>`; special keys such as `<Esc>`, `<C-w>` and `<CR>` are stored as they
+are. **With `record_text = true` the log contains everything you type,
+including passwords, in clear text.**
 
 ## Development
 
-`make test` runs every spec through `test/run.vim` and exits non-zero on any
-failure. The code is layered as described in `docs/ARCHITECTURE.md`: domain
-value objects and statistics, application use cases, infrastructure adapters
-and a plugin that wires them together. `AGENTS.md` has the conventions, the
-commit message format and the headless Vim rules.
-
-See `doc/keyhabits.txt` for the user documentation, reachable as `:help
-keyhabits`.
+`make test` runs every spec in `nvim --headless --clean`. `stylua` formats the
+code and `lua-language-server --check lua` must stay quiet. The layering is in
+`docs/ARCHITECTURE.md`, the conventions in `AGENTS.md`.

@@ -1,314 +1,193 @@
 # keyhabits — Architecture
 
-`keyhabits` is a Vim 9 plugin that records every key you press (with its mode),
-persists the stream to disk, and generates a report of your most repeated
-keystrokes and commands. It is written entirely in Vim9script and has no
-external dependencies.
-
-Requirements: Vim 9.1.0564 or newer (needs `KeyInputPre`, `SafeState`, and
-Vim9 `class`/`interface`).
+`keyhabits` is a Neovim plugin that records every key you press (with its
+mode), persists the stream to disk, reports your most repeated keystrokes and
+commands, and shows a tip the moment a habit has a better command. It is
+written in Lua for Neovim 0.11+ and LazyVim, with no required dependencies.
+The Vim 9 version is on the `legacy-vim9` branch.
 
 ## Layers (Clean Architecture)
 
-Dependencies point inward only. Nothing in `domain/` imports from `app/` or
-`infra/`. Nothing in `app/` imports from `infra/`. `plugin/keyhabits.vim` is
-the composition root that wires concrete infrastructure into use cases.
+Dependencies point inward only. Nothing in `domain/` requires `app/` or
+`infra/`. Nothing in `app/` requires `infra/`. `init.lua` is the composition
+root that wires concrete infrastructure into use cases.
 
 ```
-plugin/keyhabits.vim                  composition root: commands, auto-start
-autoload/keyhabits/
-  config.vim                          reads g:keyhabits_* with defaults
+plugin/keyhabits.lua                  defines :KeyHabits
+lua/keyhabits/
+  init.lua                            composition root: setup(opts), public API
+  config.lua                          defaults, merge and validation
+  health.lua                          :checkhealth keyhabits
   domain/
-    event.vim                         Event value object + (de)serialization
-    stats.vim                         pure aggregation over lists of events
-    advice.vim                        tip catalogue + matcher over command runs
+    event.lua                         Event value object, redaction, JSON
+    stats.lua                         pure aggregation over lists of events
+    advice.lua                        matcher of tips over command runs
+    tips.lua                          the tip catalogue (data)
   app/
-    store.vim                         `interface EventStore`
-    recorder.vim                      use case: buffer events, flush to a store
-    reporter.vim                      use case: events -> Report data structure
-    notifier.vim                      `interface Notifier`
-    coach.vim                         use case: live tips from recent commands
+    recorder.lua                      use case: buffer events, flush to a store
+    reporter.lua                      use case: events -> Report
+    coach.lua                         use case: live tips from recent commands
+    selection.lua                     which tips apply in this editor
   infra/
-    memory_store.vim                  EventStore kept in memory (tests, dry runs)
-    jsonl_store.vim                   EventStore backed by an append-only JSONL file
-    capture.vim                       KeyInputPre/SafeState autocmds -> recorder
-    report_buffer.vim                 renders a Report into a scratch buffer
-    popup_notifier.vim                Notifier shown with popup_notification()
-doc/keyhabits.txt                     Vim help
-test/
-  spec.vim                            tiny BDD DSL (Describe / It / Expect)
-  run.vim                             discovers *_spec.vim, runs, sets exit code
-  *_spec.vim                          one spec file per module
+    capture.lua                       vim.on_key + ModeChanged/SafeState -> recorder
+    jsonl_store.lua                   store backed by an append-only JSONL file
+    memory_store.lua                  store kept in memory (specs)
+    environment.lua                   installed plugins, remapped keys
+    notifier.lua                      shows a tip with vim.notify()
+    report_view.lua                   renders a Report into a float
+doc/keyhabits.txt                     :help keyhabits
+tests/
+  spec.lua                            tiny BDD DSL (describe / it / expect)
+  run.lua                             runs tests/*_spec.lua, sets the exit code
+  *_spec.lua                          specs
 ```
 
 ## Domain
 
 ### Event
 
-One key press. Represented as `dict<any>` so it can be serialized with
-`json_encode()` without conversion.
+One key press, a plain table so it encodes to JSON as is:
 
 | field   | type   | meaning                                                    |
 |---------|--------|------------------------------------------------------------|
-| `ts`    | number | `localtime()` when the key was seen                        |
-| `sid`   | string | session id, `<pid>-<start time>`; groups keys per Vim run  |
-| `grp`   | number | command group. Incremented by `SafeState`. Keys sharing a  |
-|         |        | `(sid, grp)` were typed as one command, e.g. `c`,`i`,`w`   |
-| `mode`  | string | `mode(1)` at the time of the key                           |
-| `key`   | string | `v:char` after mappings; the key Vim actually processed    |
-| `typed` | string | `v:event.typedchar`; the key the user physically typed.    |
-|         |        | Statistics count `typed`, because it is the habit; `key`   |
-|         |        | only says what a mapping expanded to                       |
-| `ft`    | string | `&filetype` of the current buffer                          |
+| `ts`    | number | `os.time()` when the key was seen                          |
+| `sid`   | string | session id, `<pid>-<start time>`; groups keys per run      |
+| `grp`   | number | command group, advanced at every command boundary          |
+| `mode`  | string | `nvim_get_mode().mode` at the time of the key              |
+| `key`   | string | the key after mappings                                     |
+| `typed` | string | the key(s) physically typed; statistics count this         |
+| `ft`    | string | `'filetype'` of the current buffer                         |
 
-Only key presses with a non-empty `typedchar` are recorded. Vim raises
-`KeyInputPre` again for keys it generates itself (`x` is executed as `dl`, a
-mapping replays its right-hand side) and those carry an empty `typedchar`;
-they are not habits and are dropped by capture.
-
-Replies from the terminal are not key presses either. The answer to Vim's
-background colour query (`t_RB`) arrives as `<xOSC>` glued to the next typed
-key, e.g. `<xOSC><xOSC>j`. `event.New` removes `<xOSC>` from the raw keys
-before redaction, and capture drops a key that had nothing else in it.
-
-`event.vim` exports `New(...)`, `Encode(event): string` (JSON line) and
-`Decode(line: string): dict<any>`. `Decode` must reject malformed lines by
-throwing, never by returning partial data.
+The format is the Vim version's, so one log serves both and history carries
+over. `event.new(raw, record_text)` names keys with `keytrans()`;
+`event.decode(line)` throws on a malformed line rather than return part of it.
 
 ### Privacy rule
 
-In Insert, Replace, Command-line and Terminal modes the printable characters
-user's actual text (and could include passwords). By default those are
-recorded as the placeholder key `<text>` so counts and rhythm survive but
-content does not. Special keys (`<Esc>`, `<C-w>`, `<CR>`, arrows) are always
-recorded verbatim. Setting `g:keyhabits_record_text = 1` records everything.
-This redaction is a domain rule and lives in `event.vim`, not in capture.
+In Insert, Replace, Command-line and Terminal modes, printable characters are
+the user's text and could include passwords. They are stored as `<text>`; a
+mapping's left-hand side that arrives as several printable characters is
+masked the same way. Special keys are stored as they are. With `record_text`
+everything is stored. The rule lives in `event.lua` and runs on the raw key,
+before `keytrans()` makes `<` and space look like special keys.
 
 ### Stats
 
-`stats.vim` is pure: it takes `list<dict<any>>` and returns plain data.
+`stats.lua` is pure: `count_keys`, `count_modes`, `count_filetypes`,
+`group_commands` (joins each group's typed keys into a command such as
+`ciw<text><Esc>`, keeping groups that start in Normal or Visual mode and
+collapsing runs of `<text>`), `count_commands`, `sessions` (events per session,
+gathered even when two editors interleave in the log), `ngrams`,
+`key_sequences` and `top` (sorted by count, then name).
 
-- `CountKeys(events)` -> `dict<number>` keyed by `typed`
-- `CountModes(events)` -> `dict<number>` keyed by `mode`
-- `CountFiletypes(events)`
-- `GroupCommands(events)` -> `list<string>`; joins the `typed` keys of each
-  `(sid, grp)` in order into one string, e.g. `"ciw<text><Esc>"`, `"3dd"`.
-  Only groups whose first key is in Normal or Visual mode count as commands.
-  A run of consecutive `<text>` placeholders collapses into one, so
-  `i<text><text><text><Esc>` and `i<text><Esc>` are the same habit.
-- `CountCommands(events)` -> `dict<number>` over `GroupCommands`
-- `Ngrams(keys: list<string>, n: number)` -> `dict<number>`; sliding window,
-  never crossing a session boundary
-- `Top(counts: dict<number>, limit: number)` -> `list<list<any>>` of
-  `[key, count]` sorted by count desc, then key asc for determinism
+### Tips and the matcher
 
-### Advice
+`tips.lua` is data: one table per tip. Its header documents every field:
+`sequence` (Vim regexes, one per command), `min`, `same`, `inside`, `repeats`,
+`fix`/`fix_each` or `saves`, `tip`, `help`, `suggests`, `requires`, `variants`
+and `example`. Tips match runs of commands, because `SafeState` ends a command
+after every plain motion, so `jjjj` is four `j` commands. They are tried in
+order and the first match wins, so a longer habit comes before a shorter one
+that starts the same way.
 
-`advice.vim` holds the rule catalogue and is pure. A rule is a plain dict:
+`advice.lua` matches them: `match(commands, tips)` returns `{ id = { runs,
+saved } }`, consuming each run so it counts once; `uncovered(commands, tips)`
+returns runs of three or more of a command no tip looks at; `key_count`
+counts a command's keys with typed text left out. Regexes are compiled once,
+and the tips that can start at each distinct command are remembered per tip
+list, so matching after every key costs about 0.05 ms.
 
-| field      | type         | meaning                                           |
-|------------|--------------|---------------------------------------------------|
-| `id`       | string       | stable name, e.g. `repeated-j`                    |
-| `sequence` | list<string> | regexes, each matched against one whole command,  |
-|            |              | in order, e.g. `['^\$$', '^a\%(<text>\)\=<Esc>$']` |
-| `min`      | number       | times in a row the sequence must occur; a rule    |
-|            |              | with `min` 1 matches one occurrence at a time     |
-| `same`     | bool         | optional; every repeat must equal the first, so   |
-|            |              | `fa fa` matches and `fa fb` does not              |
-| `inside`   | bool         | optional; the one regex matches parts of a single |
-|            |              | command, e.g. five `<BS>` inside an Insert, and   |
-|            |              | each part is one occurrence                       |
-| `fix`      | number       | keys the better way takes, typed text not counted |
-| `fix_each` | number       | optional; keys the better way adds per repeat     |
-|            |              | after the first, e.g. one `;` per repeated `fx`   |
-| `repeats`  | list<number> | optional; a minimum per regex, each matched as a  |
-|            |              | run, e.g. `[2, 1]`: two or more `j`, then a `k`   |
-| `saves`    | number       | instead of `fix`: keys saved per occurrence, for  |
-|            |              | rules whose commands carry an Insert of any length |
-| `tip`      | string       | the better way, one short line                    |
-| `help`     | string       | a `:help` tag that is the source of the tip       |
-| `example`  | list<string> | commands that show the habit                      |
-
-Rules are tried in order and the first match wins, so a longer habit (`far-j`,
-fifteen `j`) comes before the shorter one it starts with (`repeated-j`). Specs
-check every rule: its help tag exists, it states its saving with exactly one
-of `fix` and `saves`, and its `example` is matched by that rule and no earlier
-one, and saves at least one key. A tip is only added when the help text
-backs it and the better way does the same thing: `>>` three times is not
-`3>>`, and a repeated `:` command cannot be told apart from a different one
-because its text is redacted.
-
-Rules match runs of consecutive commands, not single command strings:
-`SafeState` ends a group after every plain motion, so `jjjj` is four `j`
-commands. Tips come only from Vim's own help (the user manual `usr_*.txt`
-and the reference manual); every `help` tag must resolve with
-`getcompletion(tag, 'help')`, and a spec enforces it.
-
-- `Rules()` -> `list<dict<any>>`
-- `KeyCount(command)` -> keys typed for a command; `<text>` counts as none,
-  a named key such as `<Esc>` as one
-- `Match(commands: list<string>, rules)` -> `dict<dict<number>>` of
-  `{id: {runs, saved}}`. At each position the first matching rule wins and
-  its run is consumed, so a run is counted once; `saved` adds up `saves`, or
-  the keys of each run minus `fix` and `fix_each`
-- `Uncovered(commands, rules)` -> `dict<dict<number>>` of
-  `{command: {runs, presses}}` for runs of the same command, three or more
-  in a row, that no rule's regex matches: the gaps in the catalogue
+Specs check every tip: its help tag exists in Neovim's help (for tips that need
+no plugin), it states its saving in exactly one way, and its `example` is
+matched by that tip, before any other, saving at least one key.
 
 ## Application
 
-### EventStore (interface)
-
-```vim
-export interface EventStore
-  def Append(events: list<dict<any>>)
-  def ReadAll(): list<dict<any>>
-  def Clear()
-endinterface
-```
-
 ### Recorder
 
-Holds an in-memory buffer of events. `Record(event)` appends to the buffer;
-when the buffer reaches `flush_threshold` it calls `store.Append()` and empties
-the buffer. `Flush()` forces this. The recorder never touches autocmds, timers
-or files: it is fully testable with `MemoryStore`.
+Buffers events and appends them to a store (any table with `append`,
+`read_all`, `clear`) when the buffer reaches the flush threshold, or on
+`flush()`.
+
+### Selection
+
+Decides which tips apply in this editor, given an environment answering
+`has(plugin)`, `remapped(mode, key)` and `disabled`:
+
+1. a tip switched off in `setup()` is left out;
+2. a tip whose `requires` plugin is missing is left out;
+3. the first variant whose plugin is there replaces the tip's text, help and
+   suggested keys, and marks its `source`;
+4. a tip whose suggested key is mapped to something else is left out, with
+   the mapping's description as the reason.
+
+`resolve(tip, env)` returns the tip as shown or `nil, reason`; `split` does a
+whole catalogue.
 
 ### Reporter
 
-`Build(events, options): dict<any>` returns a `Report`:
+`build(events, { limit, since, tips, resolve })` returns
 
 ```
 {
-  total_keys:      number,
-  sessions:        number,
-  time_span:       [first_ts, last_ts],
-  top_keys:        [[key, count], ...],
-  top_commands:    [[command, count], ...],
-  top_bigrams:     [[keys, count], ...],
-  modes:           [[mode, count], ...],
-  filetypes:       [[ft, count], ...],
-  advice:          [{tip, help, runs, saved}, ...],
-  untipped:        [[command, presses], ...],
+  total_keys, sessions, time_span = { first, last },
+  advice      = { { id, tip, help, source, runs, saved }, ... },
+  untipped    = { { command, presses }, ... },
+  top_keys, top_commands, top_bigrams, modes, filetypes = { { name, count }, ... },
 }
 ```
 
-Advice is matched per session and ranked by `saved`; rows that save nothing
-are left out. `untipped` lists the commands `advice.Uncovered` finds, per
-session and ranked by presses, so a habit without a tip is visible in the
-report instead of silently ignored.
-
-`options`: `{limit: number, since: number}` where `since` is a `ts` lower
-bound (0 = everything).
+Advice is matched per session, shown only for tips that resolve here, and
+ranked by keys saved; `untipped` makes gaps in the catalogue visible.
 
 ### Coach
 
-Live nudges. Keeps the finished commands of the last `window` seconds, runs
-`advice.Match` on each new one and, when a rule reaches `threshold`
-occurrences in the window and is outside its `cooldown`, calls
-`notifier.Notify(rule)` and restarts that rule's cooldown. It shows at most
-one tip per command. The time arrives with each command,
-`Observe(command, now)`, and the `Notifier` interface (`app/notifier.vim`) is
-injected, so the coach is tested without clocks or popups. The window is
-also capped at 50 commands, because matching runs after every command; with
-the catalogue remembering which rules can start at each distinct command
-(`advice.Match`), a command costs well under a millisecond.
-
-The composition root wires the coach to `Capture.OnCommand()` only when
-`g:keyhabits_nudge` is set, and skips commands while a macro is being
-recorded or replayed (`reg_recording()`, `reg_executing()`): that repetition
-is deliberate.
+Keeps the finished commands of the last `window` seconds (at most 50), matches
+them after each command and hands the first due tip, in catalogue order, to the
+notifier: due means it reached `threshold` runs, is out of its `cooldown`, and
+resolves here. Resolving at that moment means mappings made after startup
+count. Time arrives with each command and the notifier is any table with
+`notify(tip)`, so the coach is tested without clocks or UI.
 
 ## Infrastructure
 
-### JsonlStore
-
-One `json_encode`d event per line, appended with `writefile(lines, path, 'a')`.
-`ReadAll()` decodes every line; a corrupt line is skipped and counted, never
-fatal. Directory is created on first write (`mkdir(..., 'p')`).
-
 ### Capture
 
-Registers, in augroup `keyhabits`:
+- `vim.on_key` gives the key after mappings and the key(s) typed. Keys with
+  nothing typed (made by mappings or by Neovim) are dropped.
+- Plugins that read keys themselves make Neovim report some twice: which-key
+  feeds keys back (`dw` reports `w` twice; `<Space>ul` reports the three keys
+  and then `<Space>ul`), and mini.ai's `i` reports `iw` after `i`.
+  `new_part()` keeps only what a report adds to the keys already recorded for
+  the command; an exact repeat within 5 ms is a replay.
+- Command boundaries: `ModeChanged` into Normal proper, and `SafeState` while
+  in Normal mode, which separates plain motions.
+- `VimLeavePre` and a `vim.uv` timer flush the recorder.
 
-- `KeyInputPre *` -> builds an Event via `event.New()` and calls
-  `recorder.Record()`. Must be cheap: no file I/O, no string formatting beyond
-  building the dict.
-- Command boundaries, each calling `NextGroup()`:
-  - `ModeChanged *:n*` when the new mode is Normal proper (`n`, not
-    `no` operator-pending): fires when an operator finishes (`no>n`), when
-    Insert or Replace ends (`i>n`), when a command line is done (`c>n`), and
-    when Visual ends (`v>n`). This makes `ciw<text><Esc>`, `3dd`, `x` and
-    `:<text><CR>` single commands.
-  - `SafeState *` only while `mode(1)` starts with `n`: separates plain
-    motions such as `j`, `w`, `p`, `u` and `.` that change no mode. It is
-    ignored in other modes, where it fires after every key and would fragment
-    a command. It also does not fire while typeahead is pending (a fast
-    `<Esc>` followed by a key), which is why `ModeChanged` is the primary
-    boundary.
-- `OnCommand(listener)` registers a `func(string)` that receives each
-  finished command, e.g. `ciw<text><Esc>`. The keys of the current command
-  are kept only while a listener is set, and turned into the command with
-  `stats.GroupCommands` at the next boundary.
-- `VimLeavePre *` -> `recorder.Flush()`.
-- A `timer_start` every `g:keyhabits_flush_interval` ms -> `recorder.Flush()`.
+### Environment
 
-`Start()` and `Stop()` are idempotent. `Stop()` flushes, deletes the augroup
-and stops the timer.
+`has(plugin)` asks lazy.nvim, then `package.loaded`, then the runtime path.
+`remapped(mode, key)` reports a mapping that has a description and does not
+simply run the key: LazyVim's `s` (Flash) and `H` (Prev Buffer) count, its
+`j` (`v:count == 0 ? 'gj' : 'j'`) and flash's `f` (no description) do not.
 
-### Popup notifier
+### Notifier and report view
 
-Implements `Notifier` with `popup_notification()`: a small popup in the top
-right that closes on its own after a few seconds and never takes focus or
-input. It shows the tip and its `:help` tag.
+The notifier calls `vim.notify()` with the title `keyhabits`, which LazyVim
+routes to noice or snacks, and remembers the last tip for `:KeyHabits why`.
+The report opens in a centred float; `q` closes it and `<CR>` on an Advice
+line opens the tip's help.
 
-### Report buffer
+## Commands and options
 
-Opens a new scratch buffer (`buftype=nofile bufhidden=wipe noswapfile`,
-filetype `keyhabits-report`) and writes the Report as aligned text sections.
-Pure rendering: a `Render(report): list<string>` function that is unit-tested,
-plus a thin `Open(lines)` that creates the buffer. Mode rows are shown
-with readable labels (`n` and `no` are both Normal); rows that share a label
-are merged and re-sorted before rendering.
+`:KeyHabits [report [days] | start | stop | clear[!] | why | tips | toggle]`,
+completed; with no argument, the report. `require("keyhabits")` exposes the
+same as functions, plus `last_tip()`, `is_recording()` and `tips_enabled()`.
 
-## Commands and configuration
-
-| command                       | effect                                             |
-|-------------------------------|----------------------------------------------------|
-| `:KeyHabitsStart`             | begin recording (auto on startup unless disabled)  |
-| `:KeyHabitsStop`              | flush and stop recording                           |
-| `:KeyHabitsReport [days]`     | open a report; optional lookback in days           |
-| `:KeyHabitsClear`             | delete the log after `confirm()`                   |
-
-| variable                        | default                                     |
-|---------------------------------|---------------------------------------------|
-| `g:keyhabits_log_file`          | `$XDG_DATA_HOME/keyhabits/events.jsonl` or `~/.local/share/keyhabits/events.jsonl` |
-| `g:keyhabits_auto_start`        | `1`                                          |
-| `g:keyhabits_flush_threshold`   | `200` events                                 |
-| `g:keyhabits_flush_interval`    | `30000` ms                                   |
-| `g:keyhabits_record_text`       | `0`                                          |
-| `g:keyhabits_report_limit`      | `20`                                         |
-| `g:keyhabits_nudge`             | `0`; `1` shows live tips                     |
-| `g:keyhabits_nudge_threshold`   | `1` run of one rule within the window        |
-| `g:keyhabits_nudge_window`      | `60` seconds                                 |
-| `g:keyhabits_nudge_cooldown`    | `600` seconds before the same tip again      |
+Options, with defaults, are documented in `config.lua` and `:help keyhabits`.
 
 ## Testing
 
-Tests are BDD specs written in Vim9script using `test/spec.vim`:
-
-```vim
-vim9script
-import '../test/spec.vim' as spec
-import autoload 'keyhabits/domain/stats.vim'
-
-spec.Describe('stats.Top', () => {
-  spec.It('sorts by count descending then key ascending', () => {
-    spec.Expect(stats.Top({a: 2, b: 5, c: 2}, 2)).ToEqual([['b', 5], ['a', 2]])
-  })
-})
-```
-
-`make test` runs `vim -Nu NONE -es --not-a-term -S test/run.vim` and exits
-non-zero on any failure. Tests must not depend on the user's vimrc, plugins
-or the real log file; file-based specs use `tempname()`.
+`make test` runs `nvim --headless --clean -l tests/run.lua`. The live path is
+verified by running the real LazyVim config in a pseudo-terminal and feeding
+keys from a timer, since headless Neovim never fires `SafeState`.
