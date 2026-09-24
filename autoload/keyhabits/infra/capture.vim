@@ -6,6 +6,7 @@ vim9script
 
 import autoload 'keyhabits/app/recorder.vim' as rec
 import autoload 'keyhabits/domain/event.vim'
+import autoload 'keyhabits/domain/stats.vim'
 
 # A command ends when Vim returns to Normal proper; 'no' (operator-pending) is
 # not the end of anything.
@@ -27,6 +28,8 @@ export class Capture
   var session: string = ''
   var group: number = 0
   var timer: number = 0
+  var pending: list<dict<any>> = []
+  var on_command: func(string) = null_function
 
   def new(this.recorder, this.record_text, this.flush_interval)
   enddef
@@ -64,6 +67,7 @@ export class Capture
       this.timer = 0
     endif
     this.running = false
+    this.pending = []
     active = null_object
   enddef
 
@@ -71,8 +75,35 @@ export class Capture
     return this.running
   enddef
 
+  # Listener receives each finished command, e.g. "ciw<text><Esc>". The keys
+  # of the current command are only kept while someone listens.
+  def OnCommand(Listener: func(string))
+    this.on_command = Listener
+  enddef
+
+  def Take(ev: dict<any>)
+    this.recorder.Record(ev)
+    if this.on_command != null_function
+      add(this.pending, ev)
+    endif
+  enddef
+
   def NextGroup()
     this.group += 1
+    this._Finish()
+  enddef
+
+  # A boundary can fire with no keys since the last one; that is no command.
+  def _Finish()
+    if len(this.pending) == 0
+      return
+    endif
+    var commands: list<string> = stats.GroupCommands(this.pending)
+    this.pending = []
+    if len(commands) > 0
+      var Listener: func(string) = this.on_command
+      Listener(commands[0])
+    endif
   enddef
 
   def Flush()
@@ -100,7 +131,7 @@ def OnKey()
     typed: v:event.typedchar,
     ft: &filetype,
   }
-  active.recorder.Record(event.New(raw, active.record_text))
+  active.Take(event.New(raw, active.record_text))
 enddef
 
 def OnModeChanged()

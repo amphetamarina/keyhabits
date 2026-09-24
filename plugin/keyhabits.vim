@@ -14,6 +14,9 @@ import autoload 'keyhabits/infra/jsonl_store.vim'
 import autoload 'keyhabits/infra/report_buffer.vim'
 import autoload 'keyhabits/app/recorder.vim' as rec
 import autoload 'keyhabits/infra/capture.vim'
+import autoload 'keyhabits/app/coach.vim'
+import autoload 'keyhabits/domain/advice.vim'
+import autoload 'keyhabits/infra/popup_notifier.vim'
 
 if !exists('##KeyInputPre') || !has('patch-9.1.0564')
   echomsg 'keyhabits: Vim 9.1.0564 or newer is required (KeyInputPre and v:event.typedchar)'
@@ -37,8 +40,27 @@ def Session(): capture.Capture
     var settings: dict<any> = config.Load()
     var recorder: rec.Recorder = rec.Recorder.new(Store(), settings.flush_threshold)
     session = capture.Capture.new(recorder, settings.record_text, settings.flush_interval)
+    if settings.nudge
+      session.OnCommand(Nudger(settings))
+    endif
   endif
   return session
+enddef
+
+# Live tips. A macro being recorded or replayed is deliberate repetition, so
+# its commands are not coached.
+def Nudger(settings: dict<any>): func(string)
+  var tips: coach.Coach = coach.Coach.new(
+    popup_notifier.PopupNotifier.new(),
+    advice.Rules(),
+    settings.nudge_threshold,
+    settings.nudge_window,
+    settings.nudge_cooldown)
+  return (command: string) => {
+    if reg_recording() == '' && reg_executing() == ''
+      tips.Observe(command, localtime())
+    endif
+  }
 enddef
 
 def StartRecording()

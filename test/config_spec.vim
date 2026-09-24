@@ -14,6 +14,10 @@ const option_names: list<string> = [
   'keyhabits_flush_interval',
   'keyhabits_record_text',
   'keyhabits_report_limit',
+  'keyhabits_nudge',
+  'keyhabits_nudge_threshold',
+  'keyhabits_nudge_window',
+  'keyhabits_nudge_cooldown',
 ]
 
 def SaveSettings(): dict<any>
@@ -71,6 +75,10 @@ def ExpectedDefaults(): dict<any>
     flush_interval: 30000,
     record_text: false,
     report_limit: 20,
+    nudge: false,
+    nudge_threshold: 3,
+    nudge_window: 60,
+    nudge_cooldown: 600,
   }
 enddef
 
@@ -89,6 +97,10 @@ spec.Describe('config.Load', () => {
       g:keyhabits_flush_interval = 1000
       g:keyhabits_record_text = 1
       g:keyhabits_report_limit = 3
+      g:keyhabits_nudge = 1
+      g:keyhabits_nudge_threshold = 2
+      g:keyhabits_nudge_window = 30
+      g:keyhabits_nudge_cooldown = 120
       var loaded: dict<any> = config.Load()
       spec.Expect(loaded.log_file).ToEqual(expand('~/keyhabits/custom.jsonl'))
       spec.Expect(loaded.auto_start).ToBeFalse()
@@ -96,6 +108,10 @@ spec.Describe('config.Load', () => {
       spec.Expect(loaded.flush_interval).ToEqual(1000)
       spec.Expect(loaded.record_text).ToBeTrue()
       spec.Expect(loaded.report_limit).ToEqual(3)
+      spec.Expect(loaded.nudge).ToBeTrue()
+      spec.Expect(loaded.nudge_threshold).ToEqual(2)
+      spec.Expect(loaded.nudge_window).ToEqual(30)
+      spec.Expect(loaded.nudge_cooldown).ToEqual(120)
     })
   })
 

@@ -11,6 +11,10 @@ export def Load(): dict<any>
     flush_interval: NumberOption('keyhabits_flush_interval', 30000),
     record_text: BoolOption('keyhabits_record_text', false),
     report_limit: NumberOption('keyhabits_report_limit', 20),
+    nudge: BoolOption('keyhabits_nudge', false),
+    nudge_threshold: NumberOption('keyhabits_nudge_threshold', 3),
+    nudge_window: NumberOption('keyhabits_nudge_window', 60),
+    nudge_cooldown: NumberOption('keyhabits_nudge_cooldown', 600),
   }
 enddef
 

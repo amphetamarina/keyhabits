@@ -129,3 +129,56 @@ spec.Describe('capture command boundaries', () => {
     spec.Expect(capture.IsSafeBoundary('')).ToBeFalse()
   })
 })
+
+def KeyEvent(grp: number, mode: string, typed: string): dict<any>
+  return {ts: 1700000000, sid: 's1', grp: grp, mode: mode, key: typed, typed: typed, ft: ''}
+enddef
+
+def Listening(heard: list<string>): capture.Capture
+  var store: memory_store.MemoryStore = memory_store.MemoryStore.new()
+  var subject: capture.Capture = capture.Capture.new(rec.Recorder.new(store, 1000), false, 0)
+  subject.OnCommand((command: string) => {
+    add(heard, command)
+  })
+  return subject
+enddef
+
+spec.Describe('capture command listener', () => {
+  spec.It('hands each finished command to the listener', () => {
+    var heard: list<string> = []
+    var subject: capture.Capture = Listening(heard)
+    subject.Take(KeyEvent(0, 'n', 'c'))
+    subject.Take(KeyEvent(0, 'no', 'i'))
+    subject.Take(KeyEvent(0, 'no', 'w'))
+    subject.Take(KeyEvent(0, 'i', '<text>'))
+    subject.Take(KeyEvent(0, 'i', '<Esc>'))
+    subject.NextGroup()
+    subject.Take(KeyEvent(1, 'n', 'j'))
+    subject.NextGroup()
+    spec.Expect(heard).ToEqual(['ciw<text><Esc>', 'j'])
+  })
+
+  spec.It('says nothing for a boundary without keys', () => {
+    var heard: list<string> = []
+    var subject: capture.Capture = Listening(heard)
+    subject.NextGroup()
+    subject.NextGroup()
+    spec.Expect(heard).ToEqual([])
+  })
+
+  spec.It('says nothing for keys that are not a command', () => {
+    var heard: list<string> = []
+    var subject: capture.Capture = Listening(heard)
+    subject.Take(KeyEvent(0, 'ce', '<text>'))
+    subject.NextGroup()
+    spec.Expect(heard).ToEqual([])
+  })
+
+  spec.It('still records every key it takes', () => {
+    var store: memory_store.MemoryStore = memory_store.MemoryStore.new()
+    var subject: capture.Capture = capture.Capture.new(rec.Recorder.new(store, 1), false, 0)
+    subject.Take(KeyEvent(0, 'n', 'j'))
+    subject.NextGroup()
+    spec.Expect(store.ReadAll()).ToHaveLength(1)
+  })
+})
