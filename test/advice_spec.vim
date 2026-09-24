@@ -70,6 +70,12 @@ spec.Describe('advice.Match', () => {
     spec.Expect(advice.Match(['j', 'j', 'j'], advice.Rules())).ToEqual({})
   })
 
+  spec.It('suggests a count for repeated word motions', () => {
+    var commands: list<string> = ['w', 'w', 'w', 'w', 'j', 'b', 'b', 'b', 'b', 'b', 'e', 'e', 'e', 'e']
+    spec.Expect(advice.Match(commands, advice.Rules())).ToEqual({
+      'repeated-w': {runs: 1, saved: 2}, 'repeated-b': {runs: 1, saved: 3}, 'repeated-e': {runs: 1, saved: 2}})
+  })
+
   spec.It('treats arrow keys like the motion they repeat', () => {
     var commands: list<string> = ['<Down>', 'j', '<Down>', 'j']
     spec.Expect(advice.Match(commands, advice.Rules())).ToEqual(
