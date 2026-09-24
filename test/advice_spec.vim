@@ -173,6 +173,24 @@ spec.Describe('advice.Match with the rule options', () => {
   })
 })
 
+spec.Describe('advice.Match with repeats', () => {
+  spec.It('takes each step as a run of at least its minimum', () => {
+    var commands: list<string> = ['j', 'j', 'j', 'j', 'j', 'k', 'k']
+    spec.Expect(advice.Match(commands, advice.Rules())).ToEqual(
+      {'overshoot-down': {runs: 1, saved: 5}})
+  })
+
+  spec.It('does not match when a step falls short', () => {
+    spec.Expect(advice.Match(['j', 'k'], Only('overshoot-down'))).ToEqual({})
+  })
+
+  spec.It('changes several deleted words in one go', () => {
+    var commands: list<string> = ['dw', 'dw', 'dw', 'i<text><Esc>']
+    spec.Expect(advice.Match(commands, advice.Rules())).ToEqual(
+      {'delete-words-then-insert': {runs: 1, saved: 1}})
+  })
+})
+
 spec.Describe('advice.Uncovered', () => {
   spec.It('lists a command repeated three or more times that no rule covers', () => {
     var commands: list<string> = [':<text><CR>', ':<text><CR>', ':<text><CR>', 'j']

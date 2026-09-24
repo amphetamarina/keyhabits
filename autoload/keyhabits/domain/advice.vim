@@ -25,6 +25,9 @@ import autoload 'keyhabits/domain/event.vim'
 #             first, such as one ";" for each repeated "fx"
 #   saves     instead of fix: the keys saved by each occurrence, for rules
 #             whose commands carry an Insert of any length
+#   repeats   optional; one minimum per sequence regex, each matched as a
+#             run of at least that many commands, e.g. [2, 1] for two or
+#             more "j" and then one or more "k"
 #   tip       the better way, one line
 #   help      the :help tag the tip comes from
 #   example   commands that show the habit; a spec checks that the rule
@@ -53,6 +56,64 @@ def Counted(id: string, pattern: string, min: number, fix: number, tip: string, 
 enddef
 
 const rules: list<dict<any>> = [
+  {
+    id: 'far-j',
+    sequence: ['^\%(j\|<Down>\)$'],
+    min: 15,
+    fix: 2,
+    tip: 'Scroll half a screen with CTRL-D instead of holding j',
+    help: 'CTRL-D',
+    example: repeat(['j'], 15),
+  },
+  {
+    id: 'far-k',
+    sequence: ['^\%(k\|<Up>\)$'],
+    min: 15,
+    fix: 2,
+    tip: 'Scroll half a screen with CTRL-U instead of holding k',
+    help: 'CTRL-U',
+    example: repeat(['k'], 15),
+  },
+  {
+    id: 'overshoot-down',
+    sequence: ['^\%(j\|<Down>\)$', '^\%(k\|<Up>\)$'],
+    repeats: [2, 1],
+    min: 1,
+    fix: 2,
+    tip: 'Read the count off the relative line numbers: 7j lands on the line, no going past and back',
+    help: "'relativenumber'",
+    example: ['j', 'j', 'j', 'k'],
+  },
+  {
+    id: 'overshoot-up',
+    sequence: ['^\%(k\|<Up>\)$', '^\%(j\|<Down>\)$'],
+    repeats: [2, 1],
+    min: 1,
+    fix: 2,
+    tip: 'Read the count off the relative line numbers: 7k lands on the line, no going past and back',
+    help: "'relativenumber'",
+    example: ['k', 'k', 'k', 'j'],
+  },
+  {
+    id: 'back-then-change-word',
+    sequence: ['^b$', '^dw$', '^i'],
+    repeats: [1, 1, 1],
+    min: 1,
+    saves: 1,
+    tip: 'Change the word under the cursor with ciw instead of b, dw, i',
+    help: '04.8',
+    example: ['b', 'dw', 'i<text><Esc>'],
+  },
+  {
+    id: 'delete-words-then-insert',
+    sequence: ['^dw$', '^i'],
+    repeats: [1, 1],
+    min: 1,
+    saves: 1,
+    tip: 'Change words in one go: cw, c2w instead of dw then i (cw keeps the space after the word)',
+    help: 'cw',
+    example: ['dw', 'dw', 'i<text><Esc>'],
+  },
   {
     id: 'end-then-append',
     sequence: ['^\$$', '^a'],
@@ -244,24 +305,6 @@ const rules: list<dict<any>> = [
     tip: 'Move forward by words in Insert mode with <C-Right> instead of <Right>',
     help: 'i_<C-Right>',
     example: ['a<text><Right><Right><Right><Right><text><Esc>'],
-  },
-  {
-    id: 'far-j',
-    sequence: ['^\%(j\|<Down>\)$'],
-    min: 15,
-    fix: 2,
-    tip: 'Scroll half a screen with CTRL-D instead of holding j',
-    help: 'CTRL-D',
-    example: repeat(['j'], 15),
-  },
-  {
-    id: 'far-k',
-    sequence: ['^\%(k\|<Up>\)$'],
-    min: 15,
-    fix: 2,
-    tip: 'Scroll half a screen with CTRL-U instead of holding k',
-    help: 'CTRL-U',
-    example: repeat(['k'], 15),
   },
   {
     id: 'repeated-j',
@@ -811,7 +854,32 @@ enddef
 
 # How many commands the rule takes at index, adding what it found; 0 when it
 # does not match there.
+# How many commands a rule with repeats consumes at start: each regex takes
+# as many commands in a row as it matches, at least its minimum; 0 when one
+# falls short.
+def StepsLength(commands: list<string>, start: number, rule: dict<any>): number
+  var index: number = start
+  for step in range(len(rule.sequence))
+    var count: number = 0
+    while index < len(commands) && commands[index] =~# rule.sequence[step]
+      index += 1
+      count += 1
+    endwhile
+    if count < rule.repeats[step]
+      return 0
+    endif
+  endfor
+  return index - start
+enddef
+
 def Take(commands: list<string>, index: number, rule: dict<any>, found: dict<dict<number>>): number
+  if has_key(rule, 'repeats')
+    var length: number = StepsLength(commands, index, rule)
+    if length > 0
+      Add(found, rule.id, 1, Saved(rule, RunKeys(commands[index : index + length - 1]), 1))
+    endif
+    return length
+  endif
   if get(rule, 'inside', false)
     var parts: list<string> = Parts(commands[index], rule.sequence[0])
     for part in parts
