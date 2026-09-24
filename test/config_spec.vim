@@ -76,7 +76,7 @@ def ExpectedDefaults(): dict<any>
     record_text: false,
     report_limit: 20,
     nudge: false,
-    nudge_threshold: 3,
+    nudge_threshold: 1,
     nudge_window: 60,
     nudge_cooldown: 600,
   }

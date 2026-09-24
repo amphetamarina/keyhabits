@@ -255,7 +255,7 @@ are merged and re-sorted before rendering.
 | `g:keyhabits_record_text`       | `0`                                          |
 | `g:keyhabits_report_limit`      | `20`                                         |
 | `g:keyhabits_nudge`             | `0`; `1` shows live tips                     |
-| `g:keyhabits_nudge_threshold`   | `3` matches of one rule within the window    |
+| `g:keyhabits_nudge_threshold`   | `1` run of one rule within the window        |
 | `g:keyhabits_nudge_window`      | `60` seconds                                 |
 | `g:keyhabits_nudge_cooldown`    | `600` seconds before the same tip again      |
 

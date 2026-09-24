@@ -115,8 +115,9 @@ g:keyhabits_nudge
 
                                                   *g:keyhabits_nudge_threshold*
 g:keyhabits_nudge_threshold
-        number, default 3. How many times one habit must occur within
-        |g:keyhabits_nudge_window| before its tip is shown.
+        number, default 1. How many times one habit must occur within
+        |g:keyhabits_nudge_window| before its tip is shown. A run of the
+        same motion, such as "jjjjjjjj", counts as one time.
 
                                                   *g:keyhabits_nudge_window*
 g:keyhabits_nudge_window
