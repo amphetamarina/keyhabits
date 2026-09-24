@@ -52,6 +52,10 @@ Recording starts automatically when Vim starts. After using Vim for a while:
 | `g:keyhabits_flush_interval` | `30000` | milliseconds between flushes of a partial buffer; `0` disables the timer |
 | `g:keyhabits_record_text` | `0` | record typed text instead of `<text>` |
 | `g:keyhabits_report_limit` | `20` | entries shown per ranked report section |
+| `g:keyhabits_nudge` | `0` | `1` shows a tip in a popup while you work |
+| `g:keyhabits_nudge_threshold` | `3` | times a habit must occur within the window before its tip shows |
+| `g:keyhabits_nudge_window` | `60` | seconds of recent commands watched |
+| `g:keyhabits_nudge_cooldown` | `600` | seconds before the same tip may show again |
 
 ## Privacy
 
@@ -80,6 +84,11 @@ as repeating `j` where a count would do, or `$a` where `A` would. Each tip is
 ranked by the keys it would have saved and names the `:help` topic it comes
 from. Tips are taken only from Vim's own documentation, and a spec fails if any
 cited help tag does not exist.
+
+With `let g:keyhabits_nudge = 1` the same tips also appear live, in a small
+popup in the top right corner, when one habit repeats three times within a
+minute. The popup closes by itself and never takes focus; each tip waits ten
+minutes before it can show again, and macros are never coached.
 
 ## Development
 

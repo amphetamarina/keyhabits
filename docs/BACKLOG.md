@@ -28,7 +28,7 @@ its tests pass under `make test` and the lead has approved the diff.
           fails if `getcompletion(tag, 'help')` has no exact match. Add an
           "Advice" section to the report, ranked by occurrences times keys
           saved.
-- [ ] T13 Live nudges: capture hands each finished command to
+- [x] T13 Live nudges: capture hands each finished command to
           `app/coach.vim`, which applies the threshold and cooldowns and calls
           a `Notifier`; `infra/popup_notifier.vim` shows the tip with
           `popup_notification()`. Options `g:keyhabits_nudge`,

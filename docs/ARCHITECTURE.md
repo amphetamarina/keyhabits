@@ -26,11 +26,14 @@ autoload/keyhabits/
     store.vim                         `interface EventStore`
     recorder.vim                      use case: buffer events, flush to a store
     reporter.vim                      use case: events -> Report data structure
+    notifier.vim                      `interface Notifier`
+    coach.vim                         use case: live tips from recent commands
   infra/
     memory_store.vim                  EventStore kept in memory (tests, dry runs)
     jsonl_store.vim                   EventStore backed by an append-only JSONL file
     capture.vim                       KeyInputPre/SafeState autocmds -> recorder
     report_buffer.vim                 renders a Report into a scratch buffer
+    popup_notifier.vim                Notifier shown with popup_notification()
 doc/keyhabits.txt                     Vim help
 test/
   spec.vim                            tiny BDD DSL (Describe / It / Expect)
@@ -171,9 +174,16 @@ bound (0 = everything).
 Live nudges. Keeps the finished commands of the last `window` seconds, runs
 `advice.Match` on each new one and, when a rule reaches `threshold`
 occurrences in the window and is outside its `cooldown`, calls
-`notifier.Notify(rule)` and restarts that rule's cooldown. The clock and the
-`Notifier` interface are injected, so the coach is tested without timers or
-popups. It stays silent while a macro is executing or being recorded.
+`notifier.Notify(rule)` and restarts that rule's cooldown. It shows at most
+one tip per command. The time arrives with each command,
+`Observe(command, now)`, and the `Notifier` interface (`app/notifier.vim`) is
+injected, so the coach is tested without clocks or popups. The window is
+also capped at 200 commands, because matching runs after every command.
+
+The composition root wires the coach to `Capture.OnCommand()` only when
+`g:keyhabits_nudge` is set, and skips commands while a macro is being
+recorded or replayed (`reg_recording()`, `reg_executing()`): that repetition
+is deliberate.
 
 ## Infrastructure
 
@@ -202,6 +212,10 @@ Registers, in augroup `keyhabits`:
     a command. It also does not fire while typeahead is pending (a fast
     `<Esc>` followed by a key), which is why `ModeChanged` is the primary
     boundary.
+- `OnCommand(listener)` registers a `func(string)` that receives each
+  finished command, e.g. `ciw<text><Esc>`. The keys of the current command
+  are kept only while a listener is set, and turned into the command with
+  `stats.GroupCommands` at the next boundary.
 - `VimLeavePre *` -> `recorder.Flush()`.
 - A `timer_start` every `g:keyhabits_flush_interval` ms -> `recorder.Flush()`.
 

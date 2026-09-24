@@ -105,6 +105,27 @@ g:keyhabits_report_limit
         number, default 20. How many entries each ranked section of the
         report shows.
 
+                                                  *g:keyhabits_nudge*
+g:keyhabits_nudge
+        number, default 0. When not zero, a tip from the Advice section
+        (see |keyhabits-report|) pops up in the top right corner while you
+        work, when one habit keeps repeating. The popup closes by itself
+        after a few seconds and never takes focus or keys. Nothing is shown
+        while a macro is being recorded or replayed.
+
+                                                  *g:keyhabits_nudge_threshold*
+g:keyhabits_nudge_threshold
+        number, default 3. How many times one habit must occur within
+        |g:keyhabits_nudge_window| before its tip is shown.
+
+                                                  *g:keyhabits_nudge_window*
+g:keyhabits_nudge_window
+        number, default 60. How many seconds of recent commands are watched.
+
+                                                  *g:keyhabits_nudge_cooldown*
+g:keyhabits_nudge_cooldown
+        number, default 600. Seconds before the same tip may be shown again.
+
 ==============================================================================
 PRIVACY                                                  *keyhabits-privacy*
 
