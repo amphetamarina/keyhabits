@@ -15,6 +15,7 @@ export def Render(report: dict<any>): list<string>
   add(lines, TimeLine(report))
   add(lines, $'keys: {report.total_keys}  sessions: {report.sessions}')
   AdviceSection(lines, report.advice)
+  Section(lines, 'Repeated, no tip yet (presses in runs of 3 or more)', report.untipped)
   Section(lines, 'Top keys', report.top_keys)
   Section(lines, 'Top commands', report.top_commands)
   Section(lines, 'Top key pairs', report.top_bigrams)

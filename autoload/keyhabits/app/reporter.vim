@@ -9,6 +9,7 @@ import autoload 'keyhabits/domain/stats.vim'
 export def Build(events: list<dict<any>>, options: dict<any>): dict<any>
   var kept: list<dict<any>> = Since(events, get(options, 'since', 0))
   var limit: number = get(options, 'limit', 0)
+  var sessions: list<list<string>> = SessionCommands(kept)
   return {
     total_keys: len(kept),
     sessions: Sessions(kept),
@@ -18,7 +19,8 @@ export def Build(events: list<dict<any>>, options: dict<any>): dict<any>
     top_bigrams: stats.Top(AllBigrams(kept), limit),
     modes: stats.Top(stats.CountModes(kept), 0),
     filetypes: stats.Top(stats.CountFiletypes(kept), 0),
-    advice: Advice(kept, limit),
+    advice: Advice(sessions, limit),
+    untipped: Untipped(sessions, limit),
   }
 enddef
 
@@ -89,9 +91,9 @@ enddef
 
 # Advice is matched per session, so no run spans two of them. Rows that would
 # save no keys are left out, and the rest are ranked by keys saved.
-def Advice(events: list<dict<any>>, limit: number): list<dict<any>>
+def Advice(sessions: list<list<string>>, limit: number): list<dict<any>>
   var totals: dict<dict<number>> = {}
-  for commands in SessionCommands(events)
+  for commands in sessions
     for [id, tally] in items(advice.Match(commands, advice.Rules()))
       var total: dict<number> = get(totals, id, {runs: 0, saved: 0})
       total.runs += tally.runs
@@ -107,4 +109,16 @@ def Advice(events: list<dict<any>>, limit: number): list<dict<any>>
   endfor
   sort(rows, (a: dict<any>, b: dict<any>): number => b.saved - a.saved)
   return limit > 0 && limit < len(rows) ? rows[0 : limit - 1] : rows
+enddef
+
+# Commands repeated three or more times in a row that no rule has a tip for,
+# ranked by presses, so a gap in the catalogue shows up in the report.
+def Untipped(sessions: list<list<string>>, limit: number): list<list<any>>
+  var presses: dict<number> = {}
+  for commands in sessions
+    for [command, tally] in items(advice.Uncovered(commands, advice.Rules()))
+      presses[command] = get(presses, command, 0) + tally.presses
+    endfor
+  endfor
+  return stats.Top(presses, limit)
 enddef

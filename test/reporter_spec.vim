@@ -39,6 +39,7 @@ spec.Describe('reporter.Build', () => {
     spec.Expect(report.modes).ToEqual([])
     spec.Expect(report.filetypes).ToEqual([])
     spec.Expect(report.advice).ToEqual([])
+    spec.Expect(report.untipped).ToEqual([])
   })
 
   spec.It('counts totals, sessions, the time span and every section', () => {
@@ -149,5 +150,23 @@ spec.Describe('reporter.Build', () => {
     var rows: list<dict<any>> = reporter.Build(events, Options({limit: 1})).advice
     spec.Expect(mapnew(rows, (_, row: dict<any>): list<number> => [row.runs, row.saved])).ToEqual([[1, 3]])
     spec.Expect(rows[0].help).ToEqual('04.1')
+  })
+
+  spec.It('lists a repeated command that has no tip yet, per session', () => {
+    var events: list<dict<any>> = [
+      Ev({sid: 's1', grp: 1, key: 'g'}),
+      Ev({sid: 's1', grp: 1, key: 'p'}),
+      Ev({sid: 's1', grp: 2, key: 'g'}),
+      Ev({sid: 's1', grp: 2, key: 'p'}),
+      Ev({sid: 's2', grp: 1, key: 'g'}),
+      Ev({sid: 's2', grp: 1, key: 'p'}),
+      Ev({sid: 's3', grp: 1, key: 'g'}),
+      Ev({sid: 's3', grp: 1, key: 'p'}),
+      Ev({sid: 's3', grp: 2, key: 'g'}),
+      Ev({sid: 's3', grp: 2, key: 'p'}),
+      Ev({sid: 's3', grp: 3, key: 'g'}),
+      Ev({sid: 's3', grp: 3, key: 'p'}),
+    ]
+    spec.Expect(reporter.Build(events, Options({})).untipped).ToEqual([['gp', 3]])
   })
 })

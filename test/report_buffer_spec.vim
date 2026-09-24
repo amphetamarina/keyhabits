@@ -18,6 +18,7 @@ def Report(overrides: dict<any>): dict<any>
     modes: [['n', 2], ['ce', 1]],
     filetypes: [['vim', 3]],
     advice: [{tip: 'Use 5j', help: 'count', runs: 2, saved: 6}],
+    untipped: [['gp', 4]],
   }, overrides)
 enddef
 
@@ -32,6 +33,7 @@ def EmptyReport(): dict<any>
     modes: [],
     filetypes: [],
     advice: [],
+    untipped: [],
   }
 enddef
 
@@ -51,6 +53,9 @@ spec.Describe('report_buffer.Render', () => {
       '',
       'Advice (keys a better command would have saved)',
       '     6  Use 5j  (:help count)',
+      '',
+      'Repeated, no tip yet (presses in runs of 3 or more)',
+      '     4  gp',
       '',
       'Top keys',
       '     2  j',
