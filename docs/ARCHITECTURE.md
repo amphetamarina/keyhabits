@@ -113,9 +113,28 @@ This redaction is a domain rule and lives in `event.vim`, not in capture.
 |            |              | in order, e.g. `['^\$$', '^a\%(<text>\)\=<Esc>$']` |
 | `min`      | number       | times in a row the sequence must occur; a rule    |
 |            |              | with `min` 1 matches one occurrence at a time     |
+| `same`     | bool         | optional; every repeat must equal the first, so   |
+|            |              | `fa fa` matches and `fa fb` does not              |
+| `inside`   | bool         | optional; the one regex matches parts of a single |
+|            |              | command, e.g. five `<BS>` inside an Insert, and   |
+|            |              | each part is one occurrence                       |
 | `fix`      | number       | keys the better way takes, typed text not counted |
+| `fix_each` | number       | optional; keys the better way adds per repeat     |
+|            |              | after the first, e.g. one `;` per repeated `fx`   |
+| `saves`    | number       | instead of `fix`: keys saved per occurrence, for  |
+|            |              | rules whose commands carry an Insert of any length |
 | `tip`      | string       | the better way, one short line                    |
 | `help`     | string       | a `:help` tag that is the source of the tip       |
+| `example`  | list<string> | commands that show the habit                      |
+
+Rules are tried in order and the first match wins, so a longer habit (`far-j`,
+fifteen `j`) comes before the shorter one it starts with (`repeated-j`). Specs
+check every rule: its help tag exists, it states its saving with exactly one
+of `fix` and `saves`, and its `example` is matched by that rule and no earlier
+one, and saves at least one key. A tip is only added when the help text
+backs it and the better way does the same thing: `>>` three times is not
+`3>>`, and a repeated `:` command cannot be told apart from a different one
+because its text is redacted.
 
 Rules match runs of consecutive commands, not single command strings:
 `SafeState` ends a group after every plain motion, so `jjjj` is four `j`
@@ -128,8 +147,11 @@ and the reference manual); every `help` tag must resolve with
   a named key such as `<Esc>` as one
 - `Match(commands: list<string>, rules)` -> `dict<dict<number>>` of
   `{id: {runs, saved}}`. At each position the first matching rule wins and
-  its run is consumed, so a run is counted once; `saved` adds up the keys of
-  each run minus `fix`
+  its run is consumed, so a run is counted once; `saved` adds up `saves`, or
+  the keys of each run minus `fix` and `fix_each`
+- `Uncovered(commands, rules)` -> `dict<dict<number>>` of
+  `{command: {runs, presses}}` for runs of the same command, three or more
+  in a row, that no rule's regex matches: the gaps in the catalogue
 
 ## Application
 
@@ -165,11 +187,14 @@ or files: it is fully testable with `MemoryStore`.
   modes:           [[mode, count], ...],
   filetypes:       [[ft, count], ...],
   advice:          [{tip, help, runs, saved}, ...],
+  untipped:        [[command, presses], ...],
 }
 ```
 
 Advice is matched per session and ranked by `saved`; rows that save nothing
-are left out.
+are left out. `untipped` lists the commands `advice.Uncovered` finds, per
+session and ranked by presses, so a habit without a tip is visible in the
+report instead of silently ignored.
 
 `options`: `{limit: number, since: number}` where `since` is a `ts` lower
 bound (0 = everything).

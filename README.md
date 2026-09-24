@@ -85,6 +85,24 @@ ranked by the keys it would have saved and names the `:help` topic it comes
 from. Tips are taken only from Vim's own documentation, and a spec fails if any
 cited help tag does not exist.
 
+The tips cover:
+
+- repeated motions: counts (`5j`, `3w`), `CTRL-D`/`CTRL-U` for long runs of
+  `j`/`k`, `f{char}` for long runs of `l`/`h`, and `;` to repeat an `f` or `t`
+- repeated edits: counts for `x`, `X`, `dd`, `dw`, `J`, `p`, `u`, `~`, blank
+  lines and scrolling
+- longer ways to say something short: `$a` → `A`, `^i` → `I`, `d$a` → `C`,
+  `diwi` → `ciw`, `ddO` → `cc`, `xi` → `s`, `dl` → `x`, `d$` → `D`
+- Visual detours: `viwd` → `diw`, `ved` → `de`, `Vjjd` → `3dd`
+- Insert and command-line editing: `CTRL-W` instead of a run of `<BS>`,
+  `<C-Left>`/`<C-Right>` instead of a run of arrows
+
+Every tip carries an example that a spec runs through the matcher, so a tip
+that never fires, or that an earlier one hides, fails `make test`. Commands
+you repeat three or more times in a row that no tip covers are listed in the
+report under "Repeated, no tip yet", so a missing tip is visible rather than
+silent.
+
 With `let g:keyhabits_nudge = 1` the same tips also appear live, in a small
 popup in the top right corner, the moment a habit happens, for example on the
 fourth `j` in a row. The popup closes by itself and never takes focus; each

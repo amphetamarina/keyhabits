@@ -155,7 +155,12 @@ Advice          Habits a better command would replace, ranked by the keys
                 from, for example "(:help count)"; every tip is taken from
                 Vim's own documentation. A run of repeated motions such as
                 "jjjj" counts once, and runs never span two Vim sessions.
-Top keys       The keys you physically typed, most frequent first. Text
+Repeated, no tip yet
+                Commands you repeated three or more times in a row that no
+                tip covers yet, ranked by presses. A command line run again
+                (":<text><CR>") stays here: its text is not recorded, so
+                keyhabits cannot tell a repeat from a different command.
+Top keys        The keys you physically typed, most frequent first. Text
                 typed in a text mode counts as <text>, one per character.
 Top commands    The commands you repeated, most frequent first. A command
                 starts in Normal mode and ends when you return to Normal, so
