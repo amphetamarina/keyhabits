@@ -54,3 +54,6 @@ T14 on the plugin is Lua for Neovim and LazyVim.
           `<C-S>` search toggle); seven tips use them and Neovim's
           `]<Space>`. Notifications wrap to the notifier's width. Capture
           recognises which-key replaying a command key by key.
+- [x] T17 Stats only: the tips, the live coach, the tip selection and the
+          notifier are removed at the maintainer's request; the plugin
+          records and reports. The last commit with tips is `aa48c57`.

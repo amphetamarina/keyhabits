@@ -27,18 +27,6 @@ function M.defaults()
       -- entries shown per ranked section
       limit = 20,
     },
-    tips = {
-      -- show a tip with vim.notify() the moment a habit happens
-      enabled = true,
-      -- times a habit must occur within the window before its tip shows
-      threshold = 1,
-      -- seconds of recent commands watched
-      window = 60,
-      -- seconds before the same tip may show again
-      cooldown = 600,
-      -- tip ids never to show, see :KeyHabits tips
-      disable = {},
-    },
   }
 end
 
@@ -54,13 +42,8 @@ function M.merge(opts)
   vim.validate("auto_start", config.auto_start, "boolean")
   vim.validate("flush_interval", config.flush_interval, "number")
   vim.validate("record_text", config.record_text, "boolean")
-  vim.validate("tips.enabled", config.tips.enabled, "boolean")
-  vim.validate("tips.disable", config.tips.disable, "table")
   positive("flush_threshold", config.flush_threshold)
   positive("report.limit", config.report.limit)
-  positive("tips.threshold", config.tips.threshold)
-  positive("tips.window", config.tips.window)
-  positive("tips.cooldown", config.tips.cooldown)
   config.log_file = vim.fn.expand(config.log_file)
   return config
 end

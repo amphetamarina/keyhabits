@@ -3,7 +3,6 @@
 -- so the key handler stays cheap.
 
 local event = require("keyhabits.domain.event")
-local stats = require("keyhabits.domain.stats")
 
 local M = {}
 
@@ -96,18 +95,15 @@ end
 local Capture = {}
 Capture.__index = Capture
 
--- options: { recorder, record_text, flush_interval, on_command }. on_command,
--- when given, receives each finished command, e.g. "ciw<text><Esc>".
+-- options: { recorder, record_text, flush_interval }
 function M.new(options)
   return setmetatable({
     recorder = options.recorder,
     record_text = options.record_text,
     flush_interval = options.flush_interval,
-    on_command = options.on_command,
     running = false,
     session = "",
     group = 0,
-    pending = {},
     keys = M.new_keys(),
   }, Capture)
 end
@@ -116,27 +112,9 @@ function Capture:is_running()
   return self.running
 end
 
--- Takes one event: records it and, while someone listens, keeps it for the
--- command being typed.
-function Capture:take(ev)
-  self.recorder:record(ev)
-  if self.on_command then
-    self.pending[#self.pending + 1] = ev
-  end
-end
-
--- A boundary: the keys since the last one form a command, if they form one
--- at all. A boundary can fire with no keys since the previous one.
+-- A boundary: the keys after it belong to the next command.
 function Capture:next_group()
   self.group = self.group + 1
-  if #self.pending == 0 then
-    return
-  end
-  local commands = stats.group_commands(self.pending)
-  self.pending = {}
-  if #commands > 0 then
-    self.on_command(commands[1])
-  end
 end
 
 -- vim.on_key() passes the key after mappings and the key(s) typed before
@@ -158,7 +136,7 @@ function Capture:on_key(key, typed)
   local now = vim.uv.hrtime()
   ev.typed = M.new_part(self.keys, ev.typed, self.group, now)
   if ev.typed ~= "" then
-    self:take(ev)
+    self.recorder:record(ev)
   end
 end
 
@@ -220,7 +198,6 @@ function Capture:stop()
     self.timer:close()
     self.timer = nil
   end
-  self.pending = {}
   self.running = false
 end
 

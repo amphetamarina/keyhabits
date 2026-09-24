@@ -1,12 +1,8 @@
--- Renders a Report as text and shows it in a floating window. On an Advice
--- line, <CR> opens the :help the tip comes from.
+-- Renders a Report as text and shows it in a floating window.
 
 local stats = require("keyhabits.domain.stats")
 
 local M = {}
-
-M.advice_title = "Advice (keys a better command would have saved)"
-M.untipped_title = "Repeated, no tip yet (presses in runs of 3 or more)"
 
 local mode_labels = {
   n = "Normal",
@@ -44,58 +40,40 @@ local function section(lines, title, rows)
   end
 end
 
--- The lines of the report, and for each Advice line the help tag it cites,
--- by line number.
 function M.render(report)
   local lines = { "keyhabits report" }
-  local help_at = {}
   if report.total_keys == 0 then
     lines[#lines + 1] = "no events recorded"
-    return lines, help_at
+    return lines
   end
   lines[#lines + 1] = ("from %s to %s"):format(stamp(report.time_span[1]), stamp(report.time_span[2]))
   lines[#lines + 1] = ("keys: %d  sessions: %d"):format(report.total_keys, report.sessions)
-  lines[#lines + 1] = ""
-  lines[#lines + 1] = M.advice_title
-  if #report.advice == 0 then
-    lines[#lines + 1] = "  (none)"
-  end
-  for _, row in ipairs(report.advice) do
-    local source = row.source and (" [" .. row.source .. "]") or ""
-    lines[#lines + 1] = ("%6d  %s%s  (:help %s)"):format(row.saved, row.tip, source, row.help)
-    help_at[#lines] = row.help
-  end
-  section(lines, M.untipped_title, report.untipped)
   section(lines, "Top keys", report.top_keys)
   section(lines, "Top commands", report.top_commands)
   section(lines, "Top key pairs", report.top_bigrams)
   section(lines, "Modes", mode_rows(report.modes))
   section(lines, "Filetypes", report.filetypes)
-  return lines, help_at
+  return lines
 end
 
-local function highlight(buf, lines, help_at)
+-- Section titles start with a capital letter; data rows are indented.
+local function highlight(buf, lines)
   local ns = vim.api.nvim_create_namespace("keyhabits-report")
   for index, line in ipairs(lines) do
     if index == 1 or line:match("^%u") then
       vim.api.nvim_buf_set_extmark(buf, ns, index - 1, 0, { end_col = #line, hl_group = "Title" })
     end
-    if help_at[index] then
-      local start = line:find("(:help", 1, true)
-      vim.api.nvim_buf_set_extmark(buf, ns, index - 1, start - 1, { end_col = #line, hl_group = "Comment" })
-    end
   end
 end
 
--- Opens the lines in a centred float; q closes it and <CR> on an Advice line
--- opens the tip's help.
-function M.open(lines, help_at)
+-- Opens the lines in a centred float that q closes.
+function M.open(lines)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].filetype = "keyhabits"
-  highlight(buf, lines, help_at)
+  highlight(buf, lines)
   local width = math.min(math.floor(vim.o.columns * 0.8), 110)
   local height = math.min(math.floor(vim.o.lines * 0.8), #lines)
   local win = vim.api.nvim_open_win(buf, true, {
@@ -110,13 +88,6 @@ function M.open(lines, help_at)
     title_pos = "center",
   })
   vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, desc = "Close the report" })
-  vim.keymap.set("n", "<CR>", function()
-    local tag = help_at[vim.api.nvim_win_get_cursor(0)[1]]
-    if tag then
-      vim.cmd.close()
-      vim.cmd.help(tag)
-    end
-  end, { buffer = buf, desc = "Open the tip's help" })
   return buf, win
 end
 

@@ -11,7 +11,7 @@ vim.api.nvim_create_user_command("KeyHabits", function(opts)
 end, {
   nargs = "*",
   bang = true,
-  desc = "keyhabits: report, start, stop, clear, why, tips, toggle",
+  desc = "keyhabits: report, start, stop, clear",
   complete = function(arg_lead, cmd_line)
     if #vim.split(cmd_line, "%s+") > 2 then
       return {}

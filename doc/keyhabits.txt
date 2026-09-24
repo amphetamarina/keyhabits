@@ -1,8 +1,8 @@
-*keyhabits.txt*  Record your key habits and get tips for better commands
+*keyhabits.txt*  Record your key habits and report them
 
-keyhabits records every key you press, with the mode you pressed it in,
-reports the keys and commands you repeat most, and tells you the moment a
-habit has a better command. It is written in Lua for Neovim and LazyVim.
+keyhabits records every key you press, with the mode you pressed it in, and
+reports the keys and commands you repeat most. It is written in Lua for
+Neovim and LazyVim.
 
 ==============================================================================
 CONTENTS                                                *keyhabits-contents*
@@ -11,10 +11,9 @@ CONTENTS                                                *keyhabits-contents*
     2. Setup.....................................|keyhabits-setup|
     3. Commands..................................|keyhabits-commands|
     4. Options...................................|keyhabits-options|
-    5. Tips......................................|keyhabits-tips|
-    6. Report....................................|keyhabits-report|
-    7. Privacy...................................|keyhabits-privacy|
-    8. Log format................................|keyhabits-log-format|
+    5. Report....................................|keyhabits-report|
+    6. Privacy...................................|keyhabits-privacy|
+    7. Log format................................|keyhabits-log-format|
 
 ==============================================================================
 INTRODUCTION                                        *keyhabits-introduction*
@@ -22,9 +21,11 @@ INTRODUCTION                                        *keyhabits-introduction*
 keyhabits watches every physical key press through |vim.on_key()| and groups
 the keys into commands: a command starts in Normal mode and ends when you
 return to Normal, so "ciw", the text you type and the closing <Esc> are one
-command, and plain motions such as "j" are one command each. From those it
-builds a report, and it matches them against a catalogue of tips while you
-work.
+command, and plain motions such as "j" are one command each. The log is a
+plain JSONL file, and the report counts what is in it.
+
+Keys that plugins such as which-key or mini.ai read and then feed back are
+counted once, as you typed them.
 
 Requires Neovim 0.11 or newer. The Vim 9 version is on the `legacy-vim9`
 branch of the repository.
@@ -38,13 +39,13 @@ With LazyVim, add a plugin spec: >lua
       "amphetamarina/keyhabits",
       event = "VeryLazy",
       opts = {},
+      keys = {
+        { "<leader>uK", "<cmd>KeyHabits report<cr>", desc = "Key Habits Report" },
+      },
     }
 <
 lazy.nvim calls `require("keyhabits").setup(opts)`, which starts recording.
 Without lazy.nvim, put the plugin on 'runtimepath' and call setup() yourself.
-
-The README shows how to add a Snacks toggle on <leader>uk and a
-report key.
 
 ==============================================================================
 COMMANDS                                                *keyhabits-commands*
@@ -57,27 +58,15 @@ COMMANDS                                                *keyhabits-commands*
 :KeyHabits stop                                         *:KeyHabits-stop*
         Start or stop recording. Stopping writes what is buffered.
 
-:KeyHabits toggle                                      *:KeyHabits-toggle*
-        Turn live tips on or off. Recording goes on either way.
-
-:KeyHabits why                                            *:KeyHabits-why*
-        Open the help for the last tip shown.
-
-:KeyHabits tips                                          *:KeyHabits-tips*
-        List the tips active in this editor, and the ones left out with the
-        reason: switched off in setup(), a plugin missing, or a key mapped
-        to something else.
-
 :KeyHabits[!] clear                                     *:KeyHabits-clear*
         Stop recording and delete the log after a confirmation. With [!]
         the question is skipped.
 
-`:checkhealth keyhabits` reports whether recording runs, where the log is
-and which tips are left out.
+`:checkhealth keyhabits` reports whether recording runs and where the log
+is.
 
 The same are available from Lua: `require("keyhabits")` has setup(),
-start(), stop(), report(days), toggle_tips(), set_tips(on), tips_enabled(),
-why(), last_tip(), catalogue(), clear(force), is_recording() and log_file().
+start(), stop(), report(days), clear(force), is_recording() and log_file().
 
 ==============================================================================
 OPTIONS                                                  *keyhabits-options*
@@ -91,13 +80,6 @@ Passed to setup(), shown here with their defaults: >lua
       flush_interval = 30000,
       record_text = false,
       report = { limit = 20 },
-      tips = {
-        enabled = true,
-        threshold = 1,
-        window = 60,
-        cooldown = 600,
-        disable = {},
-      },
     }
 <
 log_file          Where events are appended. Without $XDG_DATA_HOME,
@@ -108,54 +90,18 @@ flush_interval    Milliseconds between writes of a partial buffer; 0 turns
                   the timer off.
 record_text       Store typed text instead of <text>. See |keyhabits-privacy|.
 report.limit      Entries shown per ranked section of the report.
-tips.enabled      Show tips while you work.
-tips.threshold    How many times one habit must occur within the window
-                  before its tip shows. A run such as "jjjjjjjj" counts once.
-tips.window       Seconds of recent commands watched.
-tips.cooldown     Seconds before the same tip may show again.
-tips.disable      Tip ids never to show; `:KeyHabits tips` lists the ids.
-
-==============================================================================
-TIPS                                                        *keyhabits-tips*
-
-A tip shows as a notification through |vim.notify()|, which LazyVim draws
-with noice or snacks. It names the better command and the help it comes from;
-`:KeyHabits why` opens that help. Every tip is backed by the help that ships
-with Neovim, or with the plugin it needs, and the better way does the same
-thing as the habit it replaces.
-
-The tips know the editor they run in:
-
-- A tip whose suggested key your config maps to something else is not shown.
-  In LazyVim "s" is flash.nvim and "H" is the previous buffer, so tips that
-  suggest them stay quiet. A mapping counts as "something else" when it has
-  a description and does not simply run the key itself.
-- When flash.nvim is installed, tips for long runs of motions suggest its
-  jumps instead.
-- Tips that rely on a mapping show only when it exists, and say where it
-  comes from: LazyVim's CTRL-J for "CTRL-W j" and Alt-j for "ddp", or
-  Neovim's own ]<Space> for "o<Esc>k".
-- Tips that need a plugin, such as mini.ai's search for the next pair, show
-  only when it is installed.
-
-A macro being recorded or replayed is never coached.
 
 ==============================================================================
 REPORT                                                    *keyhabits-report*
 
-`:KeyHabits` opens a float with these sections. <CR> on a tip opens its
-help; q closes the float.
+`:KeyHabits` opens a float with these sections; q closes it.
 
-Advice          Habits a better command would replace, ranked by the keys
-                it would have saved, each with its help topic. Runs never
-                span two sessions.
-Repeated, no tip yet
-                Commands repeated three or more times in a row that no tip
-                covers. A command line run again (":<text><CR>") stays here:
-                its text is not recorded, so a repeat cannot be told apart
-                from a different command.
-Top keys        The keys you physically typed, most frequent first.
-Top commands    The commands you repeated, most frequent first.
+Top keys        The keys you physically typed, most frequent first. Text
+                typed in a text mode counts as <text>, one per character.
+Top commands    The commands you repeated, most frequent first. Typed text
+                inside a command counts as one <text>, and groups that do not
+                start in Normal or Visual mode are left out, so plain typing
+                never shows up here.
 Top key pairs   Keys that follow each other, counted within a session.
 Modes           How often each mode was active, as Normal, Insert, Visual,
                 Command-line, Replace or Terminal.

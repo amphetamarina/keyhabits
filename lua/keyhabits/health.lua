@@ -27,18 +27,6 @@ function M.check()
   else
     health.error("cannot write the log directory " .. dir)
   end
-
-  health.start("keyhabits tips")
-  if keyhabits.tips_enabled() then
-    health.ok("live tips on")
-  else
-    health.info("live tips off; :KeyHabits toggle turns them on")
-  end
-  local active, skipped = keyhabits.catalogue()
-  health.ok(("%d tips active"):format(#active))
-  for _, entry in ipairs(skipped) do
-    health.info(("%s left out: %s"):format(entry.tip.id, entry.reason))
-  end
 end
 
 return M
