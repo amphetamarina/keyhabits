@@ -1,4 +1,4 @@
-# Vim swap and backup files
+# Editor swap and backup files
 *.swp
 *.swo
 *.swn
@@ -8,7 +8,7 @@
 events.jsonl
 
 # Test artifacts
-/test/tmp/
+/tests/tmp/
 *.test.log
 
 # OS noise
