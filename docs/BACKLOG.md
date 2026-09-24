@@ -49,3 +49,8 @@ T14 on the plugin is Lua for Neovim and LazyVim.
           plugin is missing (mini.ai). Capture ignores keys which-key and
           mini.ai report twice. `:KeyHabits tips`, `:KeyHabits why`,
           `:checkhealth keyhabits`, and a toggle for LazyVim's `<leader>u`.
+- [x] T16 LazyVim and Neovim tips: `needs_mapping` and `source` let a tip or
+          variant depend on a mapping (LazyVim's `<C-J>`, `<A-j>`, flash's
+          `<C-S>` search toggle); seven tips use them and Neovim's
+          `]<Space>`. Notifications wrap to the notifier's width. Capture
+          recognises which-key replaying a command key by key.

@@ -132,6 +132,9 @@ The tips know the editor they run in:
   a description and does not simply run the key itself.
 - When flash.nvim is installed, tips for long runs of motions suggest its
   jumps instead.
+- Tips that rely on a mapping show only when it exists, and say where it
+  comes from: LazyVim's CTRL-J for "CTRL-W j" and Alt-j for "ddp", or
+  Neovim's own ]<Space> for "o<Esc>k".
 - Tips that need a plugin, such as mini.ai's search for the next pair, show
   only when it is installed.
 

@@ -84,8 +84,8 @@ gathered even when two editors interleave in the log), `ngrams`,
 
 `tips.lua` is data: one table per tip. Its header documents every field:
 `sequence` (Vim regexes, one per command), `min`, `same`, `inside`, `repeats`,
-`fix`/`fix_each` or `saves`, `tip`, `help`, `suggests`, `requires`, `variants`
-and `example`. Tips match runs of commands, because `SafeState` ends a command
+`fix`/`fix_each` or `saves`, `tip`, `help`, `suggests`, `requires`,
+`needs_mapping`, `source`, `variants` and `example`. Tips match runs of commands, because `SafeState` ends a command
 after every plain motion, so `jjjj` is four `j` commands. They are tried in
 order and the first match wins, so a longer habit comes before a shorter one
 that starts the same way.
@@ -112,12 +112,13 @@ Buffers events and appends them to a store (any table with `append`,
 ### Selection
 
 Decides which tips apply in this editor, given an environment answering
-`has(plugin)`, `remapped(mode, key)` and `disabled`:
+`has(plugin)`, `mapped(mode, key)`, `remapped(mode, key)` and `disabled`:
 
 1. a tip switched off in `setup()` is left out;
-2. a tip whose `requires` plugin is missing is left out;
-3. the first variant whose plugin is there replaces the tip's text, help and
-   suggested keys, and marks its `source`;
+2. a tip whose `requires` plugin is missing is left out, and so is one whose
+   `needs_mapping` key is not mapped (LazyVim's `<C-J>` or `<A-j>`);
+3. the first variant whose plugin and mapping are there replaces the tip's
+   text, help and suggested keys, and marks its `source`;
 4. a tip whose suggested key is mapped to something else is left out, with
    the mapping's description as the reason.
 
@@ -157,9 +158,10 @@ count. Time arrives with each command and the notifier is any table with
   nothing typed (made by mappings or by Neovim) are dropped.
 - Plugins that read keys themselves make Neovim report some twice: which-key
   feeds keys back (`dw` reports `w` twice; `<Space>ul` reports the three keys
-  and then `<Space>ul`), and mini.ai's `i` reports `iw` after `i`.
-  `new_part()` keeps only what a report adds to the keys already recorded for
-  the command; an exact repeat within 5 ms is a replay.
+  and then `<Space>ul`; `<C-W>j` reports `<C-W>` and `j` again one by one),
+  and mini.ai's `i` reports `iw` after `i`. `new_part()` keeps only what a
+  report adds to the keys already recorded for the command; a repeat of the
+  last keys, or of the command from its first key, within 5 ms is a replay.
 - Command boundaries: `ModeChanged` into Normal proper, and `SafeState` while
   in Normal mode, which separates plain motions.
 - `VimLeavePre` and a `vim.uv` timer flush the recorder.
@@ -175,6 +177,9 @@ simply run the key: LazyVim's `s` (Flash) and `H` (Prev Buffer) count, its
 
 The notifier calls `vim.notify()` with the title `keyhabits`, which LazyVim
 routes to noice or snacks, and remembers the last tip for `:KeyHabits why`.
+snacks makes a notification at most 40% of the screen wide and cuts longer
+lines, so the notifier wraps the tip at word boundaries to that width and puts
+the source and `:help` on the last line.
 The report opens in a centred float; `q` closes it and `<CR>` on an Advice
 line opens the tip's help.
 

@@ -7,8 +7,9 @@ repeated keystrokes and commands. When a habit has a better command, such as
 `:help` topic it comes from.
 
 It is built for LazyVim and knows its setup: a tip whose key your config maps
-to something else is not shown, and when flash.nvim or mini.ai offer a better
-way, the tip says so. Printable text typed in Insert, Replace, Command-line and
+to something else is not shown, and when LazyVim, flash.nvim, mini.ai or a
+Neovim default offer a better way, the tip suggests that and says where it
+comes from. Printable text typed in Insert, Replace, Command-line and
 Terminal modes is recorded as `<text>`, so counts and rhythm survive while
 content does not. Written in Lua, no required dependencies.
 
@@ -94,8 +95,13 @@ opts = {
 
 ## The tips
 
-116 tips, each backed by the help that ships with Neovim or with the plugin it
+123 tips, each backed by the help that ships with Neovim or with the plugin it
 needs, and each doing the same thing as the habit it replaces. They cover:
+
+- LazyVim and Neovim: `CTRL-W j` → `CTRL-J`, `ddp` / `ddkP` → `Alt-j` /
+  `Alt-k`, `o<Esc>k` → `]<Space>`, eight or more `w` or `b` → flash's `s`
+  jump, and repeated `n` → `CTRL-S` during a `/` search for flash's labels;
+  each shows only when the mapping or plugin is there
 
 - going past a line and back (`jjjjk`): read the count off the relative
   numbers (`3j`); long runs of `j`/`k`: `CTRL-D`/`CTRL-U`, or flash's `s`
