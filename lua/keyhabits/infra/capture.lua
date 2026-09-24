@@ -20,38 +20,77 @@ function M.is_safe_boundary(mode)
 end
 
 -- Plugins that read keys themselves make Neovim report some keys twice.
--- which-key feeds keys back as typed: after "dw" the "w" arrives again, and
--- after "<Space>ul" the three keys are followed by "<Space>ul" as a whole,
--- within a couple of milliseconds. mini.ai's "i" reads the next key, so after
--- "vi" the "w" arrives as "iw". Only what a report adds to the keys already
--- recorded for the command is a key press. An exact repeat counts as a replay
--- only within replay_ns, since nobody types that fast (key repeat is about
--- 30 ms apart) and "dd" is a real repeat.
+-- which-key feeds keys back as typed, within a couple of milliseconds: after
+-- "dw" the "w" arrives again, after "<Space>ul" the three keys are followed by
+-- "<Space>ul" as a whole, and after "<C-W>j" the keys come again one by one.
+-- mini.ai's "i" reads the next key, so after "vi" the "w" arrives as "iw".
+-- Only what a report adds to the keys already recorded for the command is a
+-- key press. A repeat counts as a replay only within replay_ns, since nobody
+-- types that fast (key repeat is about 30 ms apart) and "dd" is a real repeat.
 M.replay_ns = 5e6
 local remembered = 8
 
--- The part of name that is new. recent holds the last keys recorded, oldest
--- first, each { name, at, grp }; only those of the command in group grp
--- count.
-function M.new_part(recent, name, grp, now)
-  local spelled, longest = "", ""
-  for index = #recent, 1, -1 do
-    local entry = recent[index]
-    if entry.grp ~= grp then
-      break
+function M.new_keys()
+  return { recent = {}, replay = nil }
+end
+
+local function command_keys(keys, grp)
+  local found = {}
+  for _, entry in ipairs(keys.recent) do
+    if entry.grp == grp then
+      found[#found + 1] = entry
     end
-    spelled = entry.name .. spelled
+  end
+  return found
+end
+
+-- The keys of the command, again from its first one, each within replay_ns
+-- of the one before.
+local function continues_replay(keys, command, name, now)
+  local replay = keys.replay
+  if replay and now - replay.at <= M.replay_ns and command[replay.next] and command[replay.next].name == name then
+    replay.next = replay.next + 1
+    replay.at = now
+    return true
+  end
+  keys.replay = nil
+  if #command >= 2 and command[1].name == name and now - command[#command].at <= M.replay_ns then
+    keys.replay = { next = 2, at = now }
+    return true
+  end
+  return false
+end
+
+-- The part of name that is new. keys holds the last keys recorded, oldest
+-- first, each { name, at, grp }, and any replay under way; only the keys of
+-- the command in group grp count. Remembers name when it adds something.
+function M.new_part(keys, name, grp, now)
+  local command = command_keys(keys, grp)
+  if continues_replay(keys, command, name, now) then
+    return ""
+  end
+  local spelled, longest = "", ""
+  for index = #command, 1, -1 do
+    spelled = command[index].name .. spelled
     if #spelled > #name then
       break
     end
     if spelled == name then
-      return now - recent[#recent].at <= M.replay_ns and "" or name
+      if now - command[#command].at <= M.replay_ns then
+        return ""
+      end
+      break
     end
     if name:sub(1, #spelled) == spelled then
       longest = spelled
     end
   end
-  return name:sub(#longest + 1)
+  local part = name:sub(#longest + 1)
+  keys.recent[#keys.recent + 1] = { name = part, at = now, grp = grp }
+  if #keys.recent > remembered then
+    table.remove(keys.recent, 1)
+  end
+  return part
 end
 
 local Capture = {}
@@ -69,7 +108,7 @@ function M.new(options)
     session = "",
     group = 0,
     pending = {},
-    recent = {},
+    keys = M.new_keys(),
   }, Capture)
 end
 
@@ -117,15 +156,10 @@ function Capture:on_key(key, typed)
     ft = vim.bo.filetype,
   }, self.record_text)
   local now = vim.uv.hrtime()
-  ev.typed = M.new_part(self.recent, ev.typed, self.group, now)
-  if ev.typed == "" then
-    return
+  ev.typed = M.new_part(self.keys, ev.typed, self.group, now)
+  if ev.typed ~= "" then
+    self:take(ev)
   end
-  self.recent[#self.recent + 1] = { name = ev.typed, at = now, grp = self.group }
-  if #self.recent > remembered then
-    table.remove(self.recent, 1)
-  end
-  self:take(ev)
 end
 
 function Capture:start()

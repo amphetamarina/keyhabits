@@ -80,27 +80,41 @@ describe("capture", function()
     })
   end
 
-  it("keeps only what a report adds to the keys just recorded for the command", function()
-    local ms = 1e6
-    local dw = { { name = "d", at = 0, grp = 1 }, { name = "w", at = 100 * ms, grp = 1 } }
-    -- which-key feeding the last key, or the command, back
-    expect(capture.new_part(dw, "w", 1, 100.3 * ms)):to_be("")
-    expect(capture.new_part(dw, "dw", 1, 101 * ms)):to_be("")
-    -- a real second press, too slow to be a replay
-    expect(capture.new_part(dw, "w", 1, 130 * ms)):to_be("w")
-    expect(capture.new_part(dw, "x", 1, 100.3 * ms)):to_be("x")
-    expect(capture.new_part({}, "w", 1, 0)):to_be("w")
-    -- the keys of an earlier command do not count
-    expect(capture.new_part(dw, "w", 2, 100.3 * ms)):to_be("w")
-    local leader = {
-      { name = "<Space>", at = 0, grp = 3 },
-      { name = "u", at = 120 * ms, grp = 3 },
-      { name = "l", at = 240 * ms, grp = 3 },
-    }
-    expect(capture.new_part(leader, "<Space>ul", 3, 241.6 * ms)):to_be("")
-    -- mini.ai reading the key after "i" reports "iw"
-    local visual = { { name = "v", at = 0, grp = 4 }, { name = "i", at = 120 * ms, grp = 4 } }
-    expect(capture.new_part(visual, "iw", 4, 400 * ms)):to_be("w")
+  -- Feeds { name, ms, grp } reports through new_part and returns what each
+  -- adds.
+  local function parts(reports)
+    local keys, added = capture.new_keys(), {}
+    for _, report in ipairs(reports) do
+      added[#added + 1] = capture.new_part(keys, report[1], report[3] or 1, report[2] * 1e6)
+    end
+    return added
+  end
+
+  it("keeps real key presses, repeats included", function()
+    expect(parts({ { "d", 0 }, { "d", 120 } })):to_equal({ "d", "d" })
+    expect(parts({ { "d", 0 }, { "w", 100 }, { "w", 130 } })):to_equal({ "d", "w", "w" })
+  end)
+
+  it("drops which-key feeding back the last key or the whole command", function()
+    expect(parts({ { "d", 0 }, { "w", 100 }, { "w", 100.3 } })):to_equal({ "d", "w", "" })
+    expect(parts({ { "<Space>", 0 }, { "u", 120 }, { "l", 240 }, { "<Space>ul", 241.6 } })):to_equal({
+      "<Space>",
+      "u",
+      "l",
+      "",
+    })
+  end)
+
+  it("drops which-key feeding the command back key by key", function()
+    expect(parts({ { "<C-W>", 0 }, { "j", 120 }, { "<C-W>", 122 }, { "j", 122 } })):to_equal({ "<C-W>", "j", "", "" })
+  end)
+
+  it("keeps the new key when mini.ai reports it with the one before", function()
+    expect(parts({ { "v", 0 }, { "i", 120 }, { "iw", 400 } })):to_equal({ "v", "i", "w" })
+  end)
+
+  it("does not count the keys of an earlier command", function()
+    expect(parts({ { "d", 0, 1 }, { "w", 100, 1 }, { "w", 100.3, 2 } })):to_equal({ "d", "w", "w" })
   end)
 
   it("records typed keys and drops keys nothing typed", function()
